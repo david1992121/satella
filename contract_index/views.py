@@ -31,7 +31,7 @@ import pprint
 # from .models import Company
 from .models import (Index, IndexLocalCompany, LocalCompany,
                      RestrictLocalCompany)
-
+from .cc_query_helper import make_cc_query
 
 def original_classification_dict():
     """
@@ -374,7 +374,7 @@ def add_rec(request):
     #     # return redirect('contract_index:index')
     return render(request, 'contract_index/index.html', content)
 
-
+       
 # 検索機能 + 編集処理
 @login_required
 def searchresult(request):
@@ -730,12 +730,15 @@ def searchresult(request):
             conditions = post_dict['conditions']
         index = 0
 
-        print(conditions)
+        # print(conditions)
         if conditions is not None:
 
             sub_queries = [None] * 23
             temp_queries = [None] * 23
             dup_idx, dup_cc = [], []
+
+            cc_keyword_pack = []
+            temp_cc_pack = []
             for key, condition in conditions.items():
                 search_condition = '('
                 if index == 0:
@@ -783,29 +786,30 @@ def searchresult(request):
                         sub_queries[2] = Q()
                     if temp_queries[2] is None:
                         temp_queries[2] = Q()
+
+                    if condition["where_type"] == "or":
+                        cc_keyword_pack.append(temp_cc_pack) 
+                        temp_cc_pack = []
+                    
                     if 'contract_companies_checkbox' in condition:
-                        keyword = condition['contract_companies']
-                        # temp_sub_queries = (Q(contract_companies__iexact=keyword) | Q(contract_companies__iendswith=("/" + keyword)) | Q(contract_companies__istartswith=(keyword + "/"))| Q(contract_companies__icontains=("/" + keyword + "/")))
-                        # temp_queries[2] &= Q(contract_companies__iexact=condition['contract_companies'])
-                        # temp_queries[2] &= temp_sub_queries
-                        dup_cc.append(keyword)
+                        temp_cc_pack.append({
+                            "keyword": condition['contract_companies'],
+                            "is_exact": True
+                        })
                         add_condition(order_disp, '契約当事者(完全一致)',
                                       condition['contract_companies'])
                     else:
-                        word = condition['contract_companies'].split()
-                        # if condition['where_type'] == 'or':
-                            # sub_queries[2] |= temp_queries[2]
-                            # temp_queries[2] = Q()
-                        for w in word:
-                            dup_cc.append(w)
-                            # temp_queries[2] &= Q(
-                            #     contract_companies__icontains=w)
+                        temp_cc_pack.append({
+                            "keyword": condition['contract_companies'],
+                            "is_exact": False
+                        })
 
-                        add_condition(order_disp, '契約当事者',
-                                      ','.join(word) + search_condition)
+                        add_condition(order_disp, '契約当事者(部分一致)',
+                                      condition['contract_companies'])
 
-                if index + 1 == len(conditions) and sub_queries[2] is not None and temp_queries[2] is not None:
-                    sub_queries[2] |= temp_queries[2]
+                if index + 1 == len(conditions):
+                    if len(temp_cc_pack) > 0:
+                        cc_keyword_pack.append(temp_cc_pack)
 
                 # 契約書名の除外検索
                 if 'contract_companies_exclude' in condition and condition['contract_companies_exclude']:
@@ -1242,38 +1246,12 @@ def searchresult(request):
             for sub_query in sub_queries:
                 if sub_query is not None:
                     q_query &= sub_query
+            # print(cc_keyword_pack)
 
-            def permutation(lst):
-                if len(lst) == 0:
-                    return []
-
-                if len(lst) == 1:
-                    return [lst]
-
-                l = []
-
-                for i in range(len(lst)):
-                    m = lst[i]
-
-                    remLst = lst[:i] + lst[i + 1:]
-
-                    for p in permutation(remLst):
-                        l.append([m] + p)
-                return l
-
-            per_dup = permutation(dup_cc)
-            cc_query = Q()
-            for cc_list in per_dup:
-                query = ''
-                if len(cc_list) > 0:
-                    for cc in cc_list:
-                        query += str(cc) + '/'
-                    query = query[:-1]
-                # cc_query |= Q(contract_companies__icontains=(query))
-                cc_query |= (Q(contract_companies__iexact=query) | Q(contract_companies__iendswith=query) | Q(contract_companies__istartswith=query)| Q(contract_companies__icontains=query))
-
-            q_query &= cc_query
-            print(cc_query)
+            cc_keyword_query = make_cc_query(cc_keyword_pack)
+            # print(cc_keyword_query)
+    
+            q_query &= cc_keyword_query
 
             idx_list_0, idx_list_1, idx_list_2, idx_list_3 = [], [], [], []
             for i in range(len(dup_idx)):
@@ -1364,6 +1342,7 @@ def searchresult(request):
             indexes = indexes.filter(deleted_flag=False, **order).filter(q_query).exclude(**order_exclude).order_by(
                 sort_key)
 
+    
     # スーパーユーザでなければ管轄社で表示を絞る
     info("search:02")
     if not request.user.is_superuser:
