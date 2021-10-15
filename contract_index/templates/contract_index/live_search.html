@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <title>契約書INDEX|検索</title>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+
+    <link rel="shortcut icon" type="image/png" href="/static/contract_index/images/favicon.ico"/>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+
+    <link rel="stylesheet" type="text/css" href="/static/contract_index/css/style.css" />
+    <link href="https://fonts.googleapis.com/earlyaccess/notosansjapanese.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css?family=Lato:400,900" rel="stylesheet" />
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.6.3/css/solid.css" integrity="sha384-+0VIRx+yz1WBcCTXBkVQYIBVNEFH1eP6Zknm16roZCyeNg2maWEpk/l/KsyFKs7G" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.6.3/css/fontawesome.css" integrity="sha384-jLuaxTTBR42U2qJ/pm4JRouHkEDHkVqH0T1nyQXn1mZ7Snycpf6Rl25VBNthU4z0" crossorigin="anonymous">
+
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
+</head>
+<body>
+
+    <div id="container">
+
+<form method="post" action="searchresult/" target="_blank" name="search">
+{% csrf_token %}
+  <!-- ヘッダーメニュー -->
+  <div id='header'>
+    <div class="dropdown">
+      <!-- 切替ボタンの設定 -->
+      <button type="button" class="btn btn-secondary dropdown-toggle dropmenu" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" 
+        aria-expanded="false" tabindex="1005">
+        ユーザー名:houmu_b
+      </button>
+      <!-- ドロップメニューの設定 -->
+      <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+
+        <a class="dropdown-item" href="/accounts/logout/">ログアウト</a>
+        <div class="dropdown-divider"></div>
+        <a class="dropdown-item" href="/admin/">設定</a>
+      </div>
+      <!-- /.dropdown-menu -->
+    </div>
+    <!-- /.dropdown -->
+
+    <div class="taskbar">
+      <button class="btn btn-primary" disabled>ｴｸｽﾎﾟｰﾄ</button>
+      <button class="btn btn-primary" disabled>ｴｸｽﾎﾟｰﾄall</button>
+
+      <input type="button" value="OR検索 行追加" onclick="kouOtsuSwap('main_table')" class="btn btn-primary" id='kouOtsuSwapbtn' tabindex="1003"/>
+
+      <button type="button" name="searchStart" value="検索実行" class="submit btn btn-primary" tabindex="1004" onclick="searchStarter();">検索実行</button>
+      <input type="submit" name="searchStart" value="更新ｲﾝﾎﾟｰﾄ用ｴｸｽﾎﾟｰﾄ" class="submit btn btn-primary" disabled="disabled"></input>
+
+    </div>
+    <div class="alert-primary infobar">
+      横方向はAND検索、縦方向はOR検索です。行追加は合計6行まで可能です。アルファベットの大文字小文字は区別されません。ラジオボタンONの見出しをソートキーに使用します。
+
+      <span class='shortcut_key_info'>[Ctrl + 1: 行追加]</span>
+    </div>
+  </div>
+<!-- ヘッダーメニューここまで -->
+
+<!-- メインコンテンツ -->
+  <div id='contents'>
+    <div class='head_option'>
+
+      <div class="form-check head_option_item">
+        <input class="form-check-input" type="checkbox" value="true" id="kouotsu_checkbox" name='kouotsu_checkbox' tabindex="11" checked="checked">
+        <label class="form-check-label" for="kouotsu_checkbox">
+          　 甲乙相互検索(甲乙入替えを含んで検索)
+        </label>
+          　 ソート順
+        <input type="radio" name="sort_order" value="asc" id="sort_asc">
+        <label class="form-check-label" for="sort_asc">昇順</label>
+        <input type="radio" name="sort_order" value="desc" id="sort_desc" checked="checked">
+        <label class="form-check-label" for="sort_desc">降順</label>　
+        <button style="display: none;" >ダミーボタン</button>
+        <button class="btn btn-sm btn-outline-dark" name="special_search" value="last1000" >直近1000件</button>
+
+      </div>
+    </div>
+    <table class="table-hover text-center" id='main_table'>
+      <thead>
+        <tr>
+          <th><input type="radio" name="sort_key" value="contract_title" id="sort_contract_title">
+            <label class="form-check-label" for="sort_contract_title">契約書名</label></th>
+          <th><input type="radio" name="sort_key" value="signing_target_kou" id="sort_signing_target_kou">
+            <label class="form-check-label" for="sort_signing_target_kou">会社名・甲</label></th>
+          <th><input type="radio" name="sort_key" value="signing_target_otsu" id="sort_signing_target_otsu">
+            <label class="form-check-label" for="sort_signing_target_otsu">会社名・乙</label></th>
+          <th><input type="radio" name="sort_key" value="signing_date" id="sort_signing_date">
+            <label class="form-check-label" for="sort_signing_date">締結日</label></th>
+          <th><input type="radio" name="sort_key" value="expiration_date" id="sort_expiration_date">
+            <label class="form-check-label" for="sort_expiration_date">有効期限</label></th>
+          <th><input type="radio" name="sort_key" value="auto_update" id="sort_auto_update">
+            <label class="form-check-label" for="sort_auto_update">自動更新</label></th>
+          <th><input type="radio" name="sort_key" value="file_name" id="sort_file_name">
+            <label class="form-check-label" for="sort_file_name">ファイル名</label></th>
+
+          <th><input type="radio" name="sort_key" value="remarks" id="sort_remarks">
+            <label class="form-check-label" for="sort_remarks">備考</label></th>
+          <th><input type="radio" name="sort_key" value="hidden_flag" id="sort_hidden_flag">
+            <label class="form-check-label" for="sort_hidden_flag">非表示</label></th>
+          <th><input type="radio" name="sort_key" value="id" checked="checked" id="sort_id">
+            <label class="form-check-label" for="sort_id">No.</label></th>
+          <th id='lc_header'>
+
+          管轄社ID
+
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+
+          <td><input name='contract_title' type="text" onkeydown="go();" id="contract_title_text" value="" tabindex="101"/><br>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" value="true" id="contract_title_checkbox" name='contract_title_checkbox' tabindex="121">
+            <label class="form-check-label" for="contract_title_checkbox">
+              完全一致検索
+            </label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" value="true" id="contract_title_check_blank" name='contract_title_check_blank' tabindex="122" 
+            onClick="blankCheck('contract_title');">
+            <label class="form-check-label" for="contract_title_check_blank">
+              空で検索
+            </label>
+          </div>
+          <input name='contract_title_exclude' id="contract_title_exclude" type="text" onkeydown="go();" placeholder="除外ワード" value="" tabindex="123"></td>
+
+          <td><input name='signing_target_kou' type="text" onkeydown="go();" id="signing_target_kou_text" value="" tabindex="102" class='input_box_company'/><br>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" value="true" id="signing_target_kou_checkbox" name='signing_target_kou_checkbox' tabindex="124">
+            <label class="form-check-label" for="signing_target_kou_checkbox">
+              完全一致検索
+            </label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" value="true" id="signing_target_kou_check_blank" name='signing_target_kou_check_blank' tabindex="125" 
+            onClick="blankCheck('signing_target_kou');">
+            <label class="form-check-label" for="signing_target_kou_check_blank">
+              空で検索
+            </label>
+          </div>
+          <input name='signing_target_kou_exclude' id="signing_target_kou_exclude" type="text" onkeydown="go();" placeholder="除外ワード" value="" tabindex="126" class='input_box_company'></td>
+
+          <td><input name='signing_target_otsu' type="text" onkeydown="go();" id="signing_target_otsu_text" value="" tabindex="103" class='input_box_company'/><br>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" value="true" id="signing_target_otsu_checkbox" name='signing_target_otsu_checkbox' tabindex="127">
+            <label class="form-check-label" for="signing_target_otsu_checkbox">
+              完全一致検索
+            </label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" value="true" id="signing_target_otsu_check_blank" name='signing_target_otsu_check_blank' tabindex="128" 
+            onClick="blankCheck('signing_target_otsu');">
+            <label class="form-check-label" for="signing_target_otsu_check_blank">
+              空で検索
+            </label>
+          </div>
+          <input name='signing_target_otsu_exclude' id="signing_target_otsu_exclude" type="text" onkeydown="go();" placeholder="除外ワード" value="" tabindex="129" class='input_box_company'></td>
+
+          <td><input name='signing_date_from' type="text" placeholder="yyyy/mm/dd" onkeydown="go();" id="signing_date_text" value="" class='date_input_box_s' tabindex="104"/>から<br>
+          <input name='signing_date_to' type="text" placeholder="yyyy/mm/dd" onkeydown="go();" id="signing_date_exclude" value="" class='date_input_box_s' tabindex="105"/>まで
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" value="true" id="signing_date_check_blank" name='signing_date_check_blank' tabindex="130" 
+            onClick="blankCheck('signing_date');">
+            <label class="form-check-label" for="signing_date_check_blank">
+              空で検索
+            </label>
+          </div></td>
+
+          <td><input name='expiration_date_from' type="text" placeholder="yyyy/mm/dd" onkeydown="go();" id="expiration_date_text" value="" class='date_input_box_s' tabindex="106"/>から<br>
+          <input name='expiration_date_to' type="text" placeholder="yyyy/mm/dd" onkeydown="go();" id="expiration_date_exclude" value="" class='date_input_box_s' tabindex="107"/>まで
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" value="true" id="expiration_date_check_blank" name='expiration_date_check_blank' tabindex="131" 
+            onClick="blankCheck('expiration_date');">
+            <label class="form-check-label" for="expiration_date_check_blank">
+              空で検索
+            </label>
+          </div></td>
+
+          <td>
+            <select name='auto_update' tabindex="108">
+              <option value="None"></option>
+              <option value="1">○</option>
+              <option value="0">×</option>
+              <option value="">不明</option>
+            </select>
+          </td>
+
+          <td><input name='file_name' type="text" onkeydown="go();" id="file_name_text" value="" tabindex="109"/><br>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" value="true" id="file_name_checkbox" name='file_name_checkbox' tabindex="132">
+            <label class="form-check-label" for="file_name_checkbox">
+              完全一致検索
+            </label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" value="true" id="file_name_check_blank" name='file_name_check_blank' tabindex="133" 
+            onClick="blankCheck('file_name');">
+            <label class="form-check-label" for="file_name_check_blank">
+              空で検索
+            </label>
+          </div>
+          <input name='file_name_exclude' type="text" onkeydown="go();" id="file_name_exclude" placeholder="除外ワード" value="" tabindex="134"></td>
+
+          <td><input name='remarks' type="text" onkeydown="go();" value="" tabindex="111"/><br>
+
+          <td>
+            <select name='hidden_flag' tabindex="112">
+              <option value="None"></option>
+              <option value="1">非表示のみ</option>
+              <option value="0">非表示無し</option>
+            </select>
+          </td>
+
+          <td><input name="id" type="text" onkeydown="go();" value="" tabindex="113"/><br>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" value="true" id="id_checkbox" name='id_checkbox' checked="checked" tabindex="138">
+            <label class="form-check-label" for="id_checkbox">
+              完全一致検索
+            </label>
+          </div></td>
+
+          <td>
+            <div class="leftalign ml-3">
+              <select name="local_company" tabindex="140" multiple size="10" name='local_company'>
+
+                <option value="121">ATLAS Smart Security</option>
+
+                <option value="99">DREAM BEER</option>
+
+                <option value="108">DREAM BEER MARKETING</option>
+
+                <option value="119">DREAMBEER</option>
+
+                <option value="16">E-STAMP</option>
+
+                <option value="18">e-まちﾀｳﾝ</option>
+
+                <option value="7">EPARK</option>
+
+                <option value="9">EPARKｶﾞﾚｰｼﾞ</option>
+
+                <option value="10">EPARKｺﾝｻﾙﾃｨﾝｸﾞ</option>
+
+                <option value="11">EPARKｽｲｰﾂ</option>
+
+                <option value="12">EPARKﾋﾞｭｰﾃｨｰ</option>
+
+                <option value="13">EPARKﾏｰｹﾃｨﾝｸﾞ</option>
+
+                <option value="14">EPARKﾒﾃﾞｨｱﾊﾟｰﾄﾅｰｽﾞ</option>
+
+                <option value="15">EPARKﾒﾃﾞｨｶﾙ</option>
+
+                <option value="96">FREE JOB</option>
+
+                <option value="20">GOLUCK</option>
+
+                <option value="77">HBD</option>
+
+                <option value="101">HBDﾎｰﾙﾃﾞｨﾝｸﾞｽ</option>
+
+                <option value="22">Hi-Bit</option>
+
+                <option value="23">HRﾏﾈｼﾞﾒﾝﾄ</option>
+
+                <option value="24">iCracked Japan</option>
+
+                <option value="3">INEST</option>
+
+                <option value="81">INVORDO</option>
+
+                <option value="73">IPM</option>
+
+                <option value="93">ISPﾎｰﾙﾃﾞｨﾝｸﾞｽ</option>
+
+                <option value="4">IST</option>
+
+                <option value="115">ITF</option>
+
+                <option value="120">Mobile Style</option>
+
+                <option value="29">NAC</option>
+
+                <option value="123">OZ COFFEE</option>
+
+                <option value="32">OZ MODE</option>
+
+                <option value="97">UH Partners 2</option>
+
+                <option value="98">UH Partners 3</option>
+
+                <option value="122">UH Partners4</option>
+
+                <option value="66">ZITTO</option>
+
+                <option value="40">あおぞら損保</option>
+
+                <option value="67">おﾄｸでんき</option>
+
+                <option value="69">さくら少額短期保険</option>
+
+                <option value="70">さくら損保設立準備</option>
+
+                <option value="53">ひかりｻﾎﾟｰﾄ</option>
+
+                <option value="54">ひまわりでんき</option>
+
+                <option value="55">ひまわりﾋﾞｼﾞﾈｽｻｰﾋﾞｽ</option>
+
+                <option value="58">まるﾄｸ</option>
+
+                <option value="1">メイン</option>
+
+                <option value="5">ライフティ</option>
+
+                <option value="110">㈱HCMAアルファ</option>
+
+                <option value="45">京王ｽﾞﾎｰﾙﾃﾞｨﾝｸﾞｽ</option>
+
+                <option value="75">光通信</option>
+
+                <option value="112">光通信KK</option>
+
+                <option value="64">匠ﾜﾗﾝﾃｨｱﾝﾄﾞﾌﾟﾛﾃｸｼｮﾝ</option>
+
+                <option value="111">地域創生ﾎｰﾙﾃﾞｨﾝｸﾞｽ</option>
+
+                <option value="83">総合生活ｻｰﾋﾞｽ</option>
+
+                <option value="107">顧問ﾊﾞﾝｸ</option>
+
+                <option value="100">ｱｯﾄﾜｰｸｽ</option>
+
+                <option value="25">ｱｲ･ｲｰｸﾞﾙｰﾌﾟ</option>
+
+                <option value="38">ｱｲｺｰﾙ</option>
+
+                <option value="39">ｱｲﾈｸｽﾄ</option>
+
+                <option value="26">ｱｲﾌﾗｯｸﾞ</option>
+
+                <option value="109">ｱｲﾌﾗｯｸﾞ分割準備会社</option>
+
+                <option value="82">ｱｴﾙ</option>
+
+                <option value="106">ｱｸｾｽﾌﾞﾘｯｼﾞ</option>
+
+                <option value="41">ｱｸｾﾙ</option>
+
+                <option value="116">ｱｸｾﾙ（旧ｱｸｾﾙ1）</option>
+
+                <option value="117">ｱｸｾﾙ（旧ｱｸｾﾙ2）</option>
+
+                <option value="95">ｱﾗｲｱﾝｽﾊﾟｰﾄﾅｰ</option>
+
+                <option value="89">ｲｰﾃﾞｨﾗｲﾄ</option>
+
+                <option value="114">ｲﾝﾃｱ･ﾎｰﾙﾃﾞｨﾝｸﾞｽ</option>
+
+                <option value="79">ｴｲﾁ･ﾃｨ･ｿﾘｭｰｼｮﾝｽﾞ</option>
+
+                <option value="42">ｴｺﾈｸﾄ</option>
+
+                <option value="102">ｴｺﾛｸﾞ</option>
+
+                <option value="86">ｴｽﾃｨﾑ</option>
+
+                <option value="113">ｴﾅｼﾞｰｱﾗｲｱﾝｽﾎｰﾙﾃﾞｨﾝｸﾞｽ</option>
+
+                <option value="43">ｴﾅｼﾞｰﾊﾟｰﾄﾅｰ</option>
+
+                <option value="68">ｴﾅｼﾞｰﾌﾟﾗｽ</option>
+
+                <option value="6">ｴﾝﾊﾟﾜｰﾍﾙｽｹｱ</option>
+
+                <option value="72">ｵﾌｨｽｻｰﾋﾞｽ</option>
+
+                <option value="44">ｷｬﾘｱｺﾐｭﾆｹｰｼｮﾝ</option>
+
+                <option value="84">ｸﾙﾐｰ</option>
+
+                <option value="105">ｺｱ･ｺﾝｻﾙﾃｨﾝｸﾞ･ｸﾞﾙｰﾌﾟ</option>
+
+                <option value="46">ｺﾗﾎﾞﾙﾀ</option>
+
+                <option value="47">ｼﾝｸ</option>
+
+                <option value="27">ｼﾞｪｲ･ｺﾐｭﾆｹｰｼｮﾝ</option>
+
+                <option value="48">ｽﾏｰﾄ・ﾅﾋﾞ</option>
+
+                <option value="33">ｽﾏｰﾄﾋﾞﾘﾝｸﾞｻｰﾋﾞｽ</option>
+
+                <option value="35">ｽﾏｰﾄﾓﾊﾞｲﾙｺﾐｭﾆｹｰｼｮﾝｽﾞ</option>
+
+                <option value="80">ｽﾞｰﾑ</option>
+
+                <option value="34">ｾｰﾙｽﾊﾟｰﾄﾅｰ</option>
+
+                <option value="36">ﾃﾚｺﾑｻｰﾋﾞｽ</option>
+
+                <option value="90">ﾄﾚｼﾞｬｰｶﾞｲﾄﾞ</option>
+
+                <option value="30">ﾈｯﾄﾜｰｸｺﾝｻﾙﾃｨﾝｸﾞ</option>
+
+                <option value="31">ﾈｯﾄﾜｰｸｻｰﾋﾞｽ</option>
+
+                <option value="49">ﾉｰﾌﾞﾙｺﾐｭﾆｹｰｼｮﾝ</option>
+
+                <option value="51">ﾊｲﾎｰ</option>
+
+                <option value="52">ﾊﾙｴﾈ</option>
+
+                <option value="21">ﾊﾛｰｺﾐｭﾆｹｰｼｮﾝｽﾞ</option>
+
+                <option value="71">ﾊﾞｽｹﾌﾟﾗｽ</option>
+
+                <option value="56">ﾋﾞｭｰﾃｨﾏﾈｼﾞﾒﾝﾄ</option>
+
+                <option value="65">ﾋﾞｰｼｰｴﾌ</option>
+
+                <option value="76">ﾋﾞｼﾞﾈｽﾊﾟｰﾄﾅｰ</option>
+
+                <option value="118">ﾋﾟｽｹｽ</option>
+
+                <option value="19">ﾌｧｰｽﾄﾁｬｰｼﾞ</option>
+
+                <option value="74">ﾌｫｰｾｯﾄ</option>
+
+                <option value="78">ﾌﾞﾛｰﾄﾞﾋﾟｰｸ</option>
+
+                <option value="87">ﾍﾞｯﾂｿﾘｭｰｼｮﾝ</option>
+
+                <option value="50">ﾍﾞｽﾄｸﾘｴｲﾄ</option>
+
+                <option value="37">ﾎﾜｲﾄｻﾎﾟｰﾄ</option>
+
+                <option value="57">ﾎﾟﾘｸﾞﾛｯﾄﾘﾝｸ</option>
+
+                <option value="91">ﾏｷｼｰ</option>
+
+                <option value="85">ﾐｾｺﾚ</option>
+
+                <option value="88">ﾒﾃﾞｨ･ｳｪﾌﾞ</option>
+
+                <option value="59">ﾒﾃﾞｨｶﾙｼｽﾃﾑ</option>
+
+                <option value="60">ﾒﾃﾞｨｶﾙﾊﾟｰｸ</option>
+
+                <option value="28">ﾒﾝﾊﾞｰｽﾞﾓﾊﾞｲﾙ</option>
+
+                <option value="92">ﾓﾊﾞｲﾙｻﾎﾟｰﾄ</option>
+
+                <option value="61">ﾘﾄﾙ･ｱｲ</option>
+
+                <option value="62">ﾙﾐﾅﾘｰﾒﾃﾞｨｶﾙ</option>
+
+                <option value="63">ﾜｰﾙﾄﾞﾃﾚﾈｯﾄ</option>
+
+                <option value="blank">空で検索</option>
+              </select>
+
+            </div>
+          </td>
+
+        </tr>
+      </tbody>
+    </table>
+  </div>
+<!-- メインコンテンツここまで -->
+</form>
+
+<script>
+  var isORsearch = false;
+  // ショートカットキー用
+  function go(){
+console.log("go() start");
+    //EnterキーならSubmit
+console.log("keyCode:",window.event.keyCode);
+    if(window.event.keyCode==13){
+
+      searchStarter();
+      /*
+      if (window.navigator.userAgent.toLowerCase().indexOf('chrome') != -1) {
+        searchStarter();
+      }
+      */
+    }
+console.log("go() end");
+
+  }
+  $(function() {
+    shortcut.add("Ctrl+j",function() {
+      $("#mainbtn")[0].click();
+    });
+  });
+  $(function() {
+    shortcut.add("Ctrl+1",function() {
+      $("#kouOtsuSwapbtn")[0].click();
+    });
+  });
+
+  // 無記入検査
+  function searchStarter(){
+console.log("searchStarter()");
+    // for(var i = 0; i < document.getElementsByName("local_company").length; i++){
+    //   if(document.getElementsByName("local_company")[i].checked){
+    //     document.search.submit();
+    //     return;
+    //   }
+    // }
+    if(document.getElementsByName("contract_title")[0].value == "" 
+      && document.getElementsByName("contract_title_exclude")[0].value=="" 
+      && document.getElementsByName("signing_target_kou")[0].value=="" 
+      && document.getElementsByName("signing_target_kou_exclude")[0].value=="" 
+      && document.getElementsByName("signing_target_otsu")[0].value=="" 
+      && document.getElementsByName("signing_target_otsu_exclude")[0].value=="" 
+      && document.getElementsByName("signing_date_from")[0].value=="" 
+      && document.getElementsByName("signing_date_to")[0].value=="" 
+      && document.getElementsByName("expiration_date_from")[0].value=="" 
+      && document.getElementsByName("expiration_date_to")[0].value=="" 
+      && document.getElementsByName("auto_update")[0].value=="None" 
+      && document.getElementsByName("file_name")[0].value=="" 
+      && document.getElementsByName("file_name_exclude")[0].value=="" 
+      && document.getElementsByName("remarks")[0].value=="" 
+      && document.getElementsByName("id")[0].value=="" 
+
+      && document.getElementsByName("hidden_flag")[0].value=="None" 
+
+      && document.getElementsByName("local_company")[0].value=="" 
+
+      && document.getElementById("contract_title_check_blank").checked==false
+      && document.getElementById("signing_target_kou_check_blank").checked==false
+      && document.getElementById("signing_target_otsu_check_blank").checked==false
+      && document.getElementById("signing_date_check_blank").checked==false
+      && document.getElementById("expiration_date_check_blank").checked==false
+      && document.getElementById("file_name_check_blank").checked==false
+      ){
+      alert("どれか一つ入力してください。");
+    }else{
+console.log("submit start");
+      document.search.submit();
+console.log("submit end");
+    }
+  }
+
+  // 甲乙入れ替え複製用
+  function kouOtsuSwap(id) {
+    if (row_num >= 6){
+      return 0;
+    }
+    // テーブル取得
+    var table = document.getElementById(id);
+    // 行を行末に追加
+    var row = table.insertRow(-1);
+    // セルの挿入
+    var cell_contract_title = row.insertCell(-1);
+    var cell_signing_target_kou = row.insertCell(-1);
+    var cell_signing_target_otsu = row.insertCell(-1);
+    var cell_signing_date = row.insertCell(-1);
+    var cell_expiration_date = row.insertCell(-1);
+    var cell_auto_update = row.insertCell(-1);
+    var cell_file_name = row.insertCell(-1);
+
+    var cell_remarks = row.insertCell(-1);
+
+    var cell_hidden_flag = row.insertCell(-1);
+
+    var cell_id = row.insertCell(-1);
+
+    var cell_local_company = row.insertCell(-1);
+
+    // 行数取得
+    var row_num = table.rows.length - 1;
+
+    // 入力値の取得
+    var input_contract_title = document.search.contract_title.value;
+    var input_contract_title_exclude = document.search.contract_title_exclude.value;
+    // 甲乙は入れ替え 入替えなしに変更
+    // var input_signing_target_kou = document.search.signing_target_otsu.value;
+    // var input_signing_target_kou_exclude = document.search.signing_target_otsu_exclude.value;
+    // var input_signing_target_otsu = document.search.signing_target_kou.value;
+    // var input_signing_target_otsu_exclude = document.search.signing_target_kou_exclude.value;
+    var input_signing_target_kou = document.search.signing_target_kou.value;
+    var input_signing_target_kou_exclude = document.search.signing_target_kou_exclude.value;
+    var input_signing_target_otsu = document.search.signing_target_otsu.value;
+    var input_signing_target_otsu_exclude = document.search.signing_target_otsu_exclude.value;
+    var input_signing_date_from = document.search.signing_date_from.value;
+    var input_signing_date_to = document.search.signing_date_to.value;
+    var input_expiration_date_from = document.search.expiration_date_from.value;
+    var input_expiration_date_to = document.search.expiration_date_to.value;
+    var input_file_name = document.search.file_name.value;
+    var input_file_name_exclude = document.search.file_name_exclude.value;
+
+    var input_remarks = document.search.remarks.value;
+    var input_id = document.search.id.value;
+
+    // セルの内容入力
+    cell_contract_title.innerHTML = '<input name="contract_title' + row_num + '" type="text" onkeydown="go();" value="' + input_contract_title +'" tabindex="' + (row_num * 100 + 1) + '"></input><br><div class="form-check"><input class="form-check-input" type="checkbox" value="true" id="contract_title_checkbox' + row_num + '" name="contract_title_checkbox' + row_num + '" tabindex="' + (row_num * 100 + 21) + '"><label class="form-check-label" for="contract_title_checkbox' + row_num + '">完全一致検索</label></div><input name="contract_title_exclude' + row_num + '" type="text" onkeydown="go();" placeholder="除外ワード" value="' + input_contract_title_exclude +'" tabindex="' + (row_num * 100 + 22) + '">';
+
+    cell_signing_target_kou.innerHTML = '<input name="signing_target_kou' + row_num + '" type="text" onkeydown="go();" value="' + input_signing_target_kou +'" tabindex="' + (row_num * 100 + 2) + '" class="input_box_company"></input><br><div class="form-check"><input class="form-check-input" type="checkbox" value="true" id="signing_target_kou_checkbox' + row_num + '" name="signing_target_kou_checkbox' + row_num + '" tabindex="' + (row_num * 100 + 23) + '"><label class="form-check-label" for="signing_target_kou_checkbox' + row_num + '">完全一致検索</label></div><input name="signing_target_kou_exclude' + row_num + '" type="text" onkeydown="go();" placeholder="除外ワード" value="' + input_signing_target_kou_exclude +'" tabindex="' + (row_num * 100 + 24) + '" class="input_box_company">';
+
+    cell_signing_target_otsu.innerHTML = '<input name="signing_target_otsu' + row_num + '" type="text" onkeydown="go();" value="' + input_signing_target_otsu +'" tabindex="' + (row_num * 100 + 3) + '" class="input_box_company"></input><br><div class="form-check"><input class="form-check-input" type="checkbox" value="true" id="signing_target_otsu_checkbox' + row_num + '" name="signing_target_otsu_checkbox' + row_num + '" tabindex="' + (row_num * 100 + 25) + '"><label class="form-check-label" for="signing_target_otsu_checkbox' + row_num + '">完全一致検索</label></div><input name="signing_target_otsu_exclude' + row_num + '" type="text" onkeydown="go();" placeholder="除外ワード" value="' + input_signing_target_otsu_exclude +'" tabindex="' + (row_num * 100 + 26) + '" class="input_box_company">';
+
+    cell_signing_date.innerHTML = '<input name="signing_date_from' + row_num + '" type="text" placeholder="yyyy/mm/dd" onkeydown="go();" value="' + input_signing_date_from +'" class="date_input_box_s" tabindex="' + (row_num * 100 + 4) + '"></input>から<br><input name="signing_date_to' + row_num + '" type="text" placeholder="yyyy/mm/dd" onkeydown="go();" value="' + input_signing_date_to +'" class="date_input_box_s" tabindex="' + (row_num * 100 + 5) + '"></input>まで';
+
+    cell_expiration_date.innerHTML = '<input name="expiration_date_from' + row_num + '" type="text" placeholder="yyyy/mm/dd" onkeydown="go();" value="' + input_expiration_date_from +'" class="date_input_box_s" tabindex="' + (row_num * 100 + 6) + '"></input>から<br><input name="expiration_date_to' + row_num + '" type="text" placeholder="yyyy/mm/dd" onkeydown="go();" value="' + input_expiration_date_to +'" class="date_input_box_s" tabindex="' + (row_num * 100 + 7) + '"></input>まで';
+
+    cell_auto_update.innerHTML ='<select name="auto_update' + row_num + '" tabindex="' + (row_num * 100 + 8) + '"><option value="None"></option><option value="1">○</option><option value="0">×</option><option value="">不明</option></select>';
+
+    cell_file_name.innerHTML = '<input name="file_name' + row_num + '" type="text" onkeydown="go();" value="' + input_file_name +'" tabindex="' + (row_num * 100 + 9) + '"></input><br><div class="form-check"><input class="form-check-input" type="checkbox" value="true" id="file_name_checkbox' + row_num + '" name="file_name_checkbox' + row_num + '" tabindex="' + (row_num * 100 + 27) + '"><label class="form-check-label" for="file_name_checkbox' + row_num + '">完全一致検索</label></div><input name="file_name_exclude' + row_num + '" type="text" onkeydown="go();" placeholder="除外ワード" value="' + input_file_name_exclude +'" tabindex="' + (row_num * 100 + 28) + '">';
+
+    cell_remarks.innerHTML = '<input name="remarks' + row_num + '" type="text" onkeydown="go();" value="' + input_remarks +'" tabindex="' + (row_num * 100 + 10) + '"></input>';
+
+    cell_hidden_flag.innerHTML ='<select name="hidden_flag' + row_num + '" tabindex="' + (row_num * 100 + 13) + '"><option value="None"></option><option value="1">非表示のみ</option><option value="0">非表示なし</option></select>';
+
+    cell_id.innerHTML = '<input name="id' + row_num + '" type="text" onkeydown="go();" value="' + input_id +'" tabindex="' + (row_num * 100 + 11) + '"></input><br><div class="form-check"><input class="form-check-input" type="checkbox" value="true" id="id_checkbox' + row_num + '" name="id_checkbox' + row_num + '" checked="checked" tabindex="' + (row_num * 100 + 29) + '"><label class="form-check-label" for="id_checkbox' + row_num + '">完全一致検索</label></div>';
+
+    cell_local_company.innerHTML = '<div class="leftalign ml-3"><select name="local_company" tabindex="' + (row_num * 100 + 40) + '" multiple size="10" name="local_company' + row_num + '"><option value="121">ATLAS Smart Security</option><option value="99">DREAM BEER</option><option value="108">DREAM BEER MARKETING</option><option value="119">DREAMBEER</option><option value="16">E-STAMP</option><option value="18">e-まちﾀｳﾝ</option><option value="7">EPARK</option><option value="9">EPARKｶﾞﾚｰｼﾞ</option><option value="10">EPARKｺﾝｻﾙﾃｨﾝｸﾞ</option><option value="11">EPARKｽｲｰﾂ</option><option value="12">EPARKﾋﾞｭｰﾃｨｰ</option><option value="13">EPARKﾏｰｹﾃｨﾝｸﾞ</option><option value="14">EPARKﾒﾃﾞｨｱﾊﾟｰﾄﾅｰｽﾞ</option><option value="15">EPARKﾒﾃﾞｨｶﾙ</option><option value="96">FREE JOB</option><option value="20">GOLUCK</option><option value="77">HBD</option><option value="101">HBDﾎｰﾙﾃﾞｨﾝｸﾞｽ</option><option value="22">Hi-Bit</option><option value="23">HRﾏﾈｼﾞﾒﾝﾄ</option><option value="24">iCracked Japan</option><option value="3">INEST</option><option value="81">INVORDO</option><option value="73">IPM</option><option value="93">ISPﾎｰﾙﾃﾞｨﾝｸﾞｽ</option><option value="4">IST</option><option value="115">ITF</option><option value="120">Mobile Style</option><option value="29">NAC</option><option value="123">OZ COFFEE</option><option value="32">OZ MODE</option><option value="97">UH Partners 2</option><option value="98">UH Partners 3</option><option value="122">UH Partners4</option><option value="66">ZITTO</option><option value="40">あおぞら損保</option><option value="67">おﾄｸでんき</option><option value="69">さくら少額短期保険</option><option value="70">さくら損保設立準備</option><option value="53">ひかりｻﾎﾟｰﾄ</option><option value="54">ひまわりでんき</option><option value="55">ひまわりﾋﾞｼﾞﾈｽｻｰﾋﾞｽ</option><option value="58">まるﾄｸ</option><option value="1">メイン</option><option value="5">ライフティ</option><option value="110">㈱HCMAアルファ</option><option value="45">京王ｽﾞﾎｰﾙﾃﾞｨﾝｸﾞｽ</option><option value="75">光通信</option><option value="112">光通信KK</option><option value="64">匠ﾜﾗﾝﾃｨｱﾝﾄﾞﾌﾟﾛﾃｸｼｮﾝ</option><option value="111">地域創生ﾎｰﾙﾃﾞｨﾝｸﾞｽ</option><option value="83">総合生活ｻｰﾋﾞｽ</option><option value="107">顧問ﾊﾞﾝｸ</option><option value="100">ｱｯﾄﾜｰｸｽ</option><option value="25">ｱｲ･ｲｰｸﾞﾙｰﾌﾟ</option><option value="38">ｱｲｺｰﾙ</option><option value="39">ｱｲﾈｸｽﾄ</option><option value="26">ｱｲﾌﾗｯｸﾞ</option><option value="109">ｱｲﾌﾗｯｸﾞ分割準備会社</option><option value="82">ｱｴﾙ</option><option value="106">ｱｸｾｽﾌﾞﾘｯｼﾞ</option><option value="41">ｱｸｾﾙ</option><option value="116">ｱｸｾﾙ（旧ｱｸｾﾙ1）</option><option value="117">ｱｸｾﾙ（旧ｱｸｾﾙ2）</option><option value="95">ｱﾗｲｱﾝｽﾊﾟｰﾄﾅｰ</option><option value="89">ｲｰﾃﾞｨﾗｲﾄ</option><option value="114">ｲﾝﾃｱ･ﾎｰﾙﾃﾞｨﾝｸﾞｽ</option><option value="79">ｴｲﾁ･ﾃｨ･ｿﾘｭｰｼｮﾝｽﾞ</option><option value="42">ｴｺﾈｸﾄ</option><option value="102">ｴｺﾛｸﾞ</option><option value="86">ｴｽﾃｨﾑ</option><option value="113">ｴﾅｼﾞｰｱﾗｲｱﾝｽﾎｰﾙﾃﾞｨﾝｸﾞｽ</option><option value="43">ｴﾅｼﾞｰﾊﾟｰﾄﾅｰ</option><option value="68">ｴﾅｼﾞｰﾌﾟﾗｽ</option><option value="6">ｴﾝﾊﾟﾜｰﾍﾙｽｹｱ</option><option value="72">ｵﾌｨｽｻｰﾋﾞｽ</option><option value="44">ｷｬﾘｱｺﾐｭﾆｹｰｼｮﾝ</option><option value="84">ｸﾙﾐｰ</option><option value="105">ｺｱ･ｺﾝｻﾙﾃｨﾝｸﾞ･ｸﾞﾙｰﾌﾟ</option><option value="46">ｺﾗﾎﾞﾙﾀ</option><option value="47">ｼﾝｸ</option><option value="27">ｼﾞｪｲ･ｺﾐｭﾆｹｰｼｮﾝ</option><option value="48">ｽﾏｰﾄ・ﾅﾋﾞ</option><option value="33">ｽﾏｰﾄﾋﾞﾘﾝｸﾞｻｰﾋﾞｽ</option><option value="35">ｽﾏｰﾄﾓﾊﾞｲﾙｺﾐｭﾆｹｰｼｮﾝｽﾞ</option><option value="80">ｽﾞｰﾑ</option><option value="34">ｾｰﾙｽﾊﾟｰﾄﾅｰ</option><option value="36">ﾃﾚｺﾑｻｰﾋﾞｽ</option><option value="90">ﾄﾚｼﾞｬｰｶﾞｲﾄﾞ</option><option value="30">ﾈｯﾄﾜｰｸｺﾝｻﾙﾃｨﾝｸﾞ</option><option value="31">ﾈｯﾄﾜｰｸｻｰﾋﾞｽ</option><option value="49">ﾉｰﾌﾞﾙｺﾐｭﾆｹｰｼｮﾝ</option><option value="51">ﾊｲﾎｰ</option><option value="52">ﾊﾙｴﾈ</option><option value="21">ﾊﾛｰｺﾐｭﾆｹｰｼｮﾝｽﾞ</option><option value="71">ﾊﾞｽｹﾌﾟﾗｽ</option><option value="56">ﾋﾞｭｰﾃｨﾏﾈｼﾞﾒﾝﾄ</option><option value="65">ﾋﾞｰｼｰｴﾌ</option><option value="76">ﾋﾞｼﾞﾈｽﾊﾟｰﾄﾅｰ</option><option value="118">ﾋﾟｽｹｽ</option><option value="19">ﾌｧｰｽﾄﾁｬｰｼﾞ</option><option value="74">ﾌｫｰｾｯﾄ</option><option value="78">ﾌﾞﾛｰﾄﾞﾋﾟｰｸ</option><option value="87">ﾍﾞｯﾂｿﾘｭｰｼｮﾝ</option><option value="50">ﾍﾞｽﾄｸﾘｴｲﾄ</option><option value="37">ﾎﾜｲﾄｻﾎﾟｰﾄ</option><option value="57">ﾎﾟﾘｸﾞﾛｯﾄﾘﾝｸ</option><option value="91">ﾏｷｼｰ</option><option value="85">ﾐｾｺﾚ</option><option value="88">ﾒﾃﾞｨ･ｳｪﾌﾞ</option><option value="59">ﾒﾃﾞｨｶﾙｼｽﾃﾑ</option><option value="60">ﾒﾃﾞｨｶﾙﾊﾟｰｸ</option><option value="28">ﾒﾝﾊﾞｰｽﾞﾓﾊﾞｲﾙ</option><option value="92">ﾓﾊﾞｲﾙｻﾎﾟｰﾄ</option><option value="61">ﾘﾄﾙ･ｱｲ</option><option value="62">ﾙﾐﾅﾘｰﾒﾃﾞｨｶﾙ</option><option value="63">ﾜｰﾙﾄﾞﾃﾚﾈｯﾄ</option><option value="blank">空で検索</option></select></div>'
+
+    // OR検索モードをONにしてボタンを無効化
+    if (row_num >= 6){
+      document.getElementById('kouOtsuSwapbtn').setAttribute("disabled", "disabled");
+      document.getElementById('contract_title_checkbox').setAttribute("disabled", "disabled");
+    }
+  }
+  // 空で検索ボタン
+  function blankCheck(id){
+    var checkBtn = document.getElementById(id + '_check_blank');
+    if(checkBtn.checked){
+      document.getElementById(id + '_text').value = "";
+      document.getElementById(id + '_text').readOnly = true;
+      document.getElementById(id + '_exclude').value = "";
+      document.getElementById(id + '_exclude').readOnly = true;
+      document.getElementById(id + '_checkbox').checked  = false;
+      document.getElementById(id + '_checkbox').disabled = true;
+    }else{
+      document.getElementById(id + '_text').readOnly = false;
+      document.getElementById(id + '_exclude').readOnly = false;
+      document.getElementById(id + '_checkbox').disabled = false;
+    }
+  }
+  // 管轄社用空で検索ボタン
+  function blankCheckLocalComp(){
+    var checkBtn = document.getElementById('local_company_check_blank');
+    if(checkBtn.checked){
+      for(var i = 1;i < 6; i++){
+        if(i == 2){
+          continue;
+        }
+        document.getElementById("local_company_" + i).disabled = true;
+      }
+    }else{
+      for(var i = 1;i < 6; i++){
+        if(i == 2){
+          continue;
+        }
+        document.getElementById("local_company_" + i).disabled = false;
+      }
+    }
+  }
+  // ieでは直近１０００件消す
+  $(function(){
+    var agent = window.navigator.userAgent.toLowerCase();
+    var ie11 = (agent.indexOf('trident/7') !== -1);
+    if(ie11){
+      $("button[name='special_search']").remove();
+    }
+  });
+</script>
+
+<script type="text/javascript" src="/static/contract_index/js/jquery.balloon.min.js"></script>
+<script type="text/javascript" src="/static/contract_index/js/lcviewer.js"></script>
+
+    </div>
+
+    <script type="text/javascript" src="/static/contract_index/js/shortcut.js"></script>
+
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.bundle.min.js" integrity="sha384-pjaaA8dDz/5BgdFUPX6M/9SUZv4d12SUPF0axWc+VRZkx5xU3daN+lYb49+Ax+Tl" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
+    <script type="text/javascript" src="/static/contract_index/js/textwrapper.js"></script>
+    <script type="text/javascript" src="/static/contract_index/js/encoding.min.js"></script>
+</body>
+</html>

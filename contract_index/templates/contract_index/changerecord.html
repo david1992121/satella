@@ -1,0 +1,325 @@
+{% extends 'base.html' %} {% block title %}レコード追加{% endblock %} {% block content %}
+    {% comment %} レコード編集用テンプレートです {% endcomment %}
+    <!-- ヘッダーメニュー -->
+    <div id='header'>
+        <div class="dropdown">
+            <!-- 切替ボタンの設定 -->
+            <button type="button" class="btn btn-secondary dropdown-toggle dropmenu" id="dropdownMenuButton"
+                    data-toggle="dropdown" aria-haspopup="true"
+                    aria-expanded="false">
+                ユーザー名:{{ user.get_username }}
+            </button>
+            <!-- ドロップメニューの設定 -->
+            <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+
+                <a class="dropdown-item" href="{% url 'logout' %}">ログアウト</a>
+                <div class="dropdown-divider"></div>
+        <a class="dropdown-item" href="/admin/password_change/">パスワード変更</a>
+        {% if perms.contract_index.master %}
+        <div class="dropdown-divider"></div>
+        <a class="dropdown-item" href="{% url 'admin:index' %}">設定</a>
+        {% endif %}
+            </div>
+            <!-- /.dropdown-menu -->
+        </div>
+        <!-- /.dropdown -->
+
+        <div class="taskbar">
+            <form method="post" action="">{% csrf_token %}
+                {% if perms.contract_index.csv_export %}
+                    <button class="btn btn-primary" disabled>ｴｸｽﾎﾟｰﾄ</button>{% endif %}
+                {% if perms.contract_index.csv_export %}
+                    <button class="btn btn-primary" disabled>ｴｸｽﾎﾟｰﾄall</button>{% endif %}
+                {% if perms.contract_index.csv_import %}
+                    <input type="submit" name="import" value="ｲﾝﾎﾟｰﾄ" class="submit btn btn-primary"
+                           disabled="disabled"/>{% endif %}
+                {% if perms.contract_index.add_record %}
+                    <input type="submit" name="addrecord" value="ﾚｺｰﾄﾞ追加" class="submit btn btn-primary"
+                           disabled="disabled"/>{% endif %}
+                <input type="submit" name="kouOtsuSwap" value="甲乙入替複製" class="submit btn btn-primary"
+                       disabled="disabled"/>
+                <input type="submit" name="searchStart" value="検索実行" class="submit btn btn-primary"
+                       disabled="disabled"/>
+                {% if perms.contract_index.csv_import %}
+                       <input type="submit" name="searchStart" value="更新ｲﾝﾎﾟｰﾄ用ｴｸｽﾎﾟｰﾄ" class="submit btn btn-primary"
+                       disabled="disabled"/>{% endif %}
+                {% if perms.contract_index.write_localcompany %}
+                    <a href="{% url 'contract_index:localcompany' %}" name="localcompany"
+                       class="submit btn btn-primary">管轄社管理</a>{% endif %}
+                {% if perms.contract_index.change_indexlocalcompany %}
+                    <a href="{% url 'contract_index:restrictlocalcompany' %}" name="restrictlocalcompany"
+                       class="submit btn btn-primary" tabindex="1006">管轄社制限管理</a>{% endif %}
+            </form>
+        </div>
+        <div class='alert-primary infobar'>
+            編集中のレコード No. {{ change_record_id }}
+        </div>
+    </div>
+    <!-- ヘッダーメニューここまで -->
+
+    <!-- メインコンテンツ -->
+    <div id='contents'>
+        <table class="table-hover text-center tablesorter" id="sorter">
+            <thead>
+            <tr>
+                <th>契約書名</th>
+                <th>契約当事者</th>
+                <th>締結日</th>
+                <th>原本区分</th>
+                <th>契約終了フラグ</th>
+                <th>光通信Grpの債務保証有無</th>
+                <th>稟議番号</th>
+                <th>書面番号</th>
+                {% if perms.contract_index.pdf_path %}
+                <th>保管場所URL</th>
+                {% endif %}
+                {% if perms.contract_index.hidden_flag %}
+                <th>非開示</th>
+                {% endif %}
+                {% if perms.contract_index.manage_ll %}
+                <th>管轄社法人番号（元データ）</th>
+                <th>管轄社法人番号（追加データ）</th>
+                <th>管轄社法人番号（除去データ）</th>
+                <th>管轄社法人番号（統合データ）</th>
+                <th>管轄社名</th>
+                {% endif %}
+                <th>原本保管場所</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <form method="post" action="searchresult/">
+                    {% csrf_token %}
+
+                    <!-- POST保持機能 -->
+                    <div>
+                        {% if post_dict %}
+                            {% for k,v in post_dict.items %}
+                                {% if 'csrfmiddlewaretoken' == k or 'change' in k or 'remove' == k or 'edit' == k or 'cancel' == k %}
+                                {% else %}
+                                    {% for v0 in v %}
+                                        <input type="hidden" name="{{ k }}" value="{{ v0 }}">
+                                    {% endfor %}
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
+                        <input type="hidden" name="sort_key" value="{{ sort_key }}">
+                        <input type="hidden" name="sort_order" value="{{ sort_order }}">
+                    </div>
+                    <!-- POST保持機能ここまで -->
+
+                    {% for i in indexes %}
+                        {% comment %} ID {% endcomment %}
+                        <input name="change_id" type="hidden" value="{{ i.id }}"/>
+
+                        {% comment %} 契約書名 {% endcomment %}
+                        <td><input name='change_contract_title' type="text" value='{{ i.contract_title }}'/></td>
+
+                        {% comment %} 契約当事者 {% endcomment %}
+                        <td><input name='change_contract_companies' type="text" value='{{ i.contract_companies }}'/></td>
+
+                        {% comment %} 締結日 {% endcomment %}
+                        <td class="date_input">
+                            <input name='change_signing_date_y' type="number" placeholder="年" min="1950" max="2500"
+                                   class="rightalign date_input_box_y"
+                                   {% if i.signing_date_disp|length >= 4 %}value='{{ i.signing_date|date:"Y" }}'
+                                       >{% endif %}</input>
+                            <input name='change_signing_date_m' type="number" placeholder="月" min="1" max="12"
+                                   class="rightalign date_input_box_md"
+                                   {% if i.signing_date_disp|length >= 5 %}value='{{ i.signing_date|date:"m" }}'
+                                       >{% endif %}</input>
+                            <input name='change_signing_date_d' type="number" placeholder="日" min="1" max="31"
+                                   class="rightalign date_input_box_md"
+                                   {% if i.signing_date_disp|length >= 8 %}value='{{ i.signing_date|date:"d" }}'
+                                       >{% endif %}</input>
+                        </td>
+
+                        {% comment %} 原本区分 {% endcomment %}
+                        <td>
+                            <input name='change_original_classification' type="text" value='{{ i.original_classification }}'>
+                        </td>
+
+                        {% comment %} 契約終了フラグ {% endcomment %}
+                        <td>
+                            <input class="" type="checkbox" value="true" name='change_contract_termination_flag'
+                                   {% if i.contract_termination_flag == 1 %}checked{% endif %}>
+                        </td>
+
+                        {% comment %} 光通信Grpの債務保証有無 {% endcomment %}
+                        <td>
+                            <input name='change_loan_guarantee_availability' type="text"
+                                   value='{% if i.loan_guarantee_availability %}{{ i.loan_guarantee_availability }}{% endif %}'>
+                        </td>
+
+                        {% comment %} 稟議番号 {% endcomment %}
+                        <td>
+                            <input name='change_ringi_no' type="text"
+                                   value='{% if i.ringi_no %}{{ i.ringi_no }}{% endif %}'>
+                        </td>
+
+                        {% comment %} 書面番号 {% endcomment %}
+                        <td>
+                            <input name="change_document_number" type="text"
+                                   value='{% if i.document_number %}{{ i.document_number }}{% endif %}'>
+                        </td>
+
+                        {% if perms.contract_index.pdf_path %}
+                        {% comment %} 保管場所URL {% endcomment %}
+
+                        <td>
+                            <input name='change_pdf_path' type="text"
+                                   {% if i.pdf_path %}value='{{ i.pdf_path }}'{% endif %}>
+                        </td>
+                        {% endif %}
+
+                        {% if perms.contract_index.hidden_flag %}
+                        {% comment %} 非表示 {% endcomment %}
+                        <td>
+                            <input class="" type="checkbox" value="true" name='change_hidden_flag'
+                                   {% if i.hidden_flag == 1 %}checked{% endif %}>
+
+                        </td>
+                        {% endif %}
+
+                        {% if perms.contract_index.manage_ll %}
+                        {% comment %} 管轄社法人番号（元データ） {% endcomment %}
+                            {% with i_lc=i.index.all %}
+                                <td class='leftalign textwrap'>
+                                    {% for c in i_lc %}{% if c.add_flg == 0 or c.add_flg == 2 %}{{ c.local_company.id }},
+                                    {% endif %}{% endfor %}
+                                    <input type="hidden" name="base_localcompany_number"
+                                           value="{% for c in i_lc %}{% if c.add_flg == 0 or c.add_flg == 2 %}{{ c.local_company.id }},{% endif %}{% endfor %}"/>
+                                </td>
+                            {% endwith %}
+
+                            {% with i_lc=i.index.all %}
+                                {% comment %} 追加管轄法人番号(追加) {% endcomment %}
+                                <td class='leftalign  textwrap'>
+                                    <input type="text" name="add_localcompany_number" id="add_localcompany_number"
+{#                                           value="{% for c in i_lc %}{% if c.add_flg == 1 or c.add_flg == 3 %}{{ c.local_company.id }},{% endif %}{% endfor %}"/>#}
+                                           value="{{ add_localcompany_number }}"/>
+                                </td>
+
+                                {% comment %} 除外管轄法人番号(除去) {% endcomment %}
+                                <td class='leftalign  textwrap'>
+                                    <input type="text" name="delete_localcompany_number" id="delete_localcompany_number"
+{#                                           value="{% for c in i_lc %}{% if c.add_flg == 2 or c.add_flg == 3 %}{{ c.local_company.id }},{% endif %}{% endfor %}"/>#}
+                                           value="{{ delete_localcompany_number }}"/>
+                                </td>
+                                {% comment %} 管轄社法人番号(統合) {% endcomment %}
+                                <td class='leftalign  textwrap'>
+                                    <span id="localcompanies_disp">
+{#                                        {% for c in i_lc %}#}
+{#                                        {% if c.add_flg == 0 or c.add_flg == 1 %}{{ c.local_company.id }},#}
+{#                                        {% endif %}{% endfor %}#}
+                                        {{ after_localcompany_number }}
+                                    </span>
+                                <input type="hidden" name="after_localcompany_number" value="{{ after_localcompany_number }}">
+                                </td>
+                            {% endwith %}
+
+                        {% comment %} 管轄社名 {% endcomment %}
+                        <td>
+                            <div id="companies_name">
+                                {{ company_name }}
+                            </div>
+
+                        </td>
+                        {% endif %}
+
+                        {% comment %} 原本保管場所 {% endcomment %}
+                        <td>
+
+                            <select name='change_original_storage_location'>
+                                <option value="None"></option>
+                                {% for k, v in original_storage_location_dict %}
+                                    <option value="{{ k }}"
+                                            {% if i.original_storage_location == k %}selected{% endif %}>{{ v }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+
+                        {% comment %} 確定ボタン {% endcomment %}
+                        <td nowrap>
+                            <button type="submit" name="edit" value="edit"
+                                   class="submit btn btn-info btn-sm btn-block">確定</button><br>
+                            <button type="submit" name="cancel"
+                                   class="submit btn btn-info btn-sm btn-block">キャンセル</button><br>
+
+                            {% comment %} ダミーボタン {% endcomment %}
+                            <button type="submit" name="remove" value="削除" style='display:none;'
+                                    id='remove_btn'></button>
+                            <button type="button" class="submit btn btn-danger btn-sm btn-block"
+                                    onClick='remove_confirm()'>削除
+                            </button>
+                        </td>
+
+                    {% endfor %}
+                </form>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+    <!-- メインコンテンツここまで -->
+
+    <script>
+        {% comment %} 削除の確認 {% endcomment %}
+        {#$("#delete_localcompany_number").on('click', function () {#}
+        {#    var delete_number = $("#delete_localcompany_number").val();#}
+        {#    var add_number = $('#add_localcompany_number').text();#}
+        {#    var add_number_list = add_number.split(",");#}
+        {#    var delete_number_list = delete_number.split(",");#}
+        {##}
+        {#    var changed_add_number = '';#}
+        {#    var check_delete = 0;#}
+        {##}
+        {#    delete_number_list.forEach(function (each_delete_number) {#}
+        {#        if (add_number_list.includes(each_delete_number))#}
+        {#        {#}
+        {#            check_delete = 1;#}
+        {#            for (var i = 0; i < add_number_list.length; i ++)#}
+        {#            {#}
+        {#                if (add_number_list[i] != each_delete_number)#}
+        {#                {#}
+        {#                    changed_add_number += add_number_list[i] + ',';#}
+        {#                }#}
+        {#            }#}
+        {#        }#}
+        {#        else {#}
+        {#            changed_add_number = add_number;#}
+        {#        }#}
+        {#    });#}
+        {##}
+        {#    if (check_delete == 1)#}
+        {#    {#}
+        {#        $('#add_localcompany_number').val(changed_add_number);#}
+        {#    }#}
+        {# });#}
+        function remove_confirm() {
+            if (!confirm('本当に削除しますか？')) {
+                /* キャンセルの時の処理 */
+                return false;
+            } else {
+                /* OKの時の処理 */
+                document.getElementById("remove_btn").click();
+            }
+        }
+
+        $(function () {
+
+            var companies_number = $("#localcompanies_disp").html();
+            var companies_nmae = getCompanyName(companies_number);
+            $("#companies_name").html(companies_nmae);
+
+        });
+    </script>
+    <script>
+        {% autoescape off %}
+            var companies_name_list = {{ company_names_json }};
+        {% endautoescape %}
+    </script>
+    {% load staticfiles %}
+    <script type="text/javascript" src="{% static "contract_index/js/jquery.balloon.min.js" %}"></script>
+    <script type="text/javascript" src="{% static "contract_index/js/lcviewer.js" %}"></script>
+{% endblock %}

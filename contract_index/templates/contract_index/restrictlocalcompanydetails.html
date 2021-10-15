@@ -1,0 +1,113 @@
+{% extends 'base.html' %} {% block title %}管轄社制限管理{% endblock %} {% block content %}
+{% comment %} 管轄社管理用テンプレートです
+現在廃止していますが、今後の要望では復活する可能性があります
+ {% endcomment %}
+ <!-- ヘッダーメニュー -->
+<div id='header'>
+  <div class="dropdown">
+    <!-- 切替ボタンの設定 -->
+    <button type="button" class="btn btn-secondary dropdown-toggle dropmenu" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true"
+      aria-expanded="false">
+      ユーザー名:{{ user.get_username }}
+    </button>
+    <!-- ドロップメニューの設定 -->
+    <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+      {% comment %} <a class="dropdown-item" href="#">アカウント設定</a> {% endcomment %}
+      <a class="dropdown-item" href="{% url 'logout' %}">ログアウト</a>
+      <div class="dropdown-divider"></div>
+        <a class="dropdown-item" href="/admin/password_change/">パスワード変更</a>
+        {% if perms.contract_index.master %}
+        <div class="dropdown-divider"></div>
+        <a class="dropdown-item" href="{% url 'admin:index' %}">設定</a>
+        {% endif %}
+    </div>
+    <!-- /.dropdown-menu -->
+  </div>
+  <!-- /.dropdown -->
+
+  <div class="taskbar">
+    <form method="post" action="">{% csrf_token %}
+      {% if perms.contract_index.csv_export %}<input type="submit" name="searchStart" value="ｴｸｽﾎﾟｰﾄ" class="submit btn btn-primary" disabled="disabled"></input>{% endif %}
+      {% if perms.contract_index.csv_export %}<button class="btn btn-primary" disabled>ｴｸｽﾎﾟｰﾄall</button>{% endif %}
+      {% if perms.contract_index.csv_import %}<input type="submit" name="import" value="ｲﾝﾎﾟｰﾄ" class="submit btn btn-primary" disabled="disabled"></input>{% endif %}
+      {% if perms.contract_index.add_record %}<input type="submit" name="import" value="ﾚｺｰﾄﾞ追加" class="submit btn btn-primary" disabled="disabled"></input>{% endif %}
+      <input type="submit" name="searchStart" value="検索実行" class="submit btn btn-primary" disabled="disabled"></input>
+      <input type="submit" name="searchStart" value="更新ｲﾝﾎﾟｰﾄ用ｴｸｽﾎﾟｰﾄ" class="submit btn btn-primary" disabled="disabled"></input>
+      <input type="submit" name="searchStart" value="管轄社管理" class="submit btn btn-primary" disabled="disabled"></input>
+      <a href="{% url 'contract_index:restrictlocalcompany' %}" name="restrictlocalcompany" value="管轄社制限管理" class="submit btn btn-primary" tabindex="1006">一覧に戻る</a>
+    </form>
+  </div>
+  <div class="alert-primary infobar">
+  {% if perms.contract_index.manage_ll %}
+    {% if result %}
+      <span class='result'>{{ result }}</span>
+    {% endif %}
+    管轄社制限に<b>記載がある管轄社のみ閲覧可能</b>です。記載がない場合は<b>制限なし</b>となります。
+  {% else %}
+    ログイン中のアカウントでは管轄社管理機能を利用できません。
+  {% endif %}
+  </div>
+</div>
+<!-- ヘッダーメニューここまで -->
+
+<!-- メインコンテンツ -->
+<div id='contents'>
+  {% if perms.contract_index.manage_ll %}
+  <form method="post" action="../restrictlocalcompanydetails/" name='main'>{% csrf_token %}
+    <table class="table-hover text-center" id="table4ll">
+      <thead>
+        <tr>
+          <th>No.</th>
+          <th style='text-align:left;'>管轄社名</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for i in localcompanies %}
+        <tr>
+          <td nowrap>{{ i.id }}</td>
+          <td nowrap style='text-align:left;' name="comp_name">{{ i.local_company_name }}</td>
+          <td nowrap>
+            <input type="checkbox" name="restrictlocalcompany" class="checkbox" value="{{ i.id }}" id="chk_{{ i.id }}"
+            {% for j in restrictlocalcompany %}{% if j.user_id == user.id %}{% if j.local_company_id == i.id %}checked{% endif %}{% endif %}{% endfor %}>
+            <label for="chk_{{ i.id }}"></label>
+          </td>
+        </tr>
+        {% endfor %}
+        <tr>
+          <td colspan='3'>
+            <div class="btn-group">
+              <button type="submit" class="submit btn btn-info">決定</button>
+              <button type="button" class="submit btn btn-danger" onClick="checkAllClear();">クリア</button>
+              <a href="{% url 'contract_index:restrictlocalcompany' %}" class="submit btn btn-warning">キャンセル</a>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <input type='hidden' name='id' value="{{ user.id }}">
+    <input type='hidden' name='submit' value='true'>
+  </form>
+  <script>
+  {% comment %} チェックボックスのクリック有効範囲をテーブルのセル全体にする {% endcomment %}
+  $(function() {
+    $('[id^="chk_"]').click(function(event){
+      event.stopPropagation();
+    });
+    $('[id^="chk_"]').parent('td').click(function(event){
+      $(this).children('[id^="chk_"]').trigger('click');
+    });
+    $('label[for^="chk_"]').click(function(event) {
+      event.preventDefault();
+    });
+  });
+  {% comment %} クリアボタンのための関数 {% endcomment %}
+  function checkAllClear(){
+    $(".checkbox").prop('checked', false);
+  }
+
+  </script>
+  {% endif %}
+</div>
+<!-- メインコンテンツここまで -->
+{% endblock %}

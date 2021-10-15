@@ -1,0 +1,212 @@
+
+/* inputのread-onlyも灰色にする */
+input:read-only, textarea:read-only {
+    background-color: #EBEBE4;
+    cursor: default;
+}
+/* 全体のCSSです */
+body{
+    font-family: 'Lato', 'Noto Sans Japanese', '游ゴシック Medium', '游ゴシック体', 'Yu Gothic Medium', 'YuGothic', 'ヒラギノ角ゴ ProN', 'Hiragino Kaku Gothic ProN', 'メイリオ', 'Meiryo', 'ＭＳ Ｐゴシック', 'MS PGothic', 'sans-serif';
+}
+#header {
+    position: fixed; /* 固定 */
+    top: 0; /* 一番上に表示 */
+    width: 100%; /* 中央に表示 */
+    background-color: rgba(241, 249, 255, 0.877);
+}
+#contents {
+    overflow: auto; /* スクロールする範囲を制御 */
+    margin: 0 auto;
+    padding: 95px 0 30px; /* コンテンツ上下にスペース */
+}
+table, td, th {
+    border: 1px #c0c0c0 solid;
+    font-size: 90%;
+}
+
+table td {
+    /* word-break: break-all; */
+    text-overflow:ellipsis;
+    overflow:hidden;
+	white-space: nowrap;
+}
+table {
+    margin: auto;
+}
+th {
+    background-color: #dfdfdf;
+    min-width: 55px;
+}
+table th:first-child {
+    min-width: 45px;
+}
+table th:nth-child(2) {
+    min-width: 50px;
+}
+th.narrow{
+    min-width: 60px;
+}
+ul.errorlist{
+    list-style: none;
+}
+div.taskbar{
+    margin: 5px;
+}
+div.dropdown{
+    float: right;
+}
+input {
+    max-width: 180px;
+}
+.input_box_company{
+    width: 180px;
+}
+button {
+    max-width: 130px;
+}
+button.dropmenu {
+    max-width: none;
+}
+.none{
+    font-weight: bold;
+    color: #dde;
+}
+.bgnone{
+    background-color: #ddd;
+}
+.leftalign{
+    text-align: left;
+}
+.rightalign{
+    text-align: right;
+}
+label, input[type='checkbox'], input[type='radio']{
+    cursor: pointer;
+}
+span.result {
+    font-weight: bold;
+    color: rgb(255, 0, 0);
+}
+.unimplemented {
+    background-color: #E0A800;
+}
+.unimplementedspan {
+    font-weight: bold;
+    color: #E0A800;
+}
+.contract_title{
+    max-width: 80px;
+}
+
+.contract_company{
+    max-width: 90px;
+}
+
+.company_number{
+    max-width: 121px;
+}
+
+.table-container{
+    display: block;
+    position: relative;
+    overflow: auto;
+    max-height: calc(100vh - 300px);
+}
+.signing_target_kou{
+    max-width: 270px;
+}
+.signing_target_otsu{
+    max-width: 270px;
+}
+.file_name{
+    max-width: 140px;
+}
+.remarks{
+    max-width: 140px;
+}
+.id{
+    max-width: 30px;
+}
+.pdf_path{
+    max-width: 30px;
+}
+.indexes_localCompanies{
+    min-width: 70px;
+    max-width: 100px;
+}
+.pdf_download{
+    min-width: 60px;
+}
+.shortcut_key_info{
+    font-weight: bold;
+    color: darkslategray;
+}
+.infobar{
+    padding-left: 15px;
+    margin-bottom: 5px;
+}
+.date_input{
+    max-width: 135px;
+}
+.date_input_box_y{
+    width: 50px;
+}
+.date_input_box_md{
+    width: 35px;
+}
+.date_input_box_s{
+    width: 80px;
+}
+.head_option{
+    margin: 0 80px 20px;
+    font-size: 90%;
+}
+.head_option input[type='checkbox']{
+    text-align: right;
+    width: 60px;
+}
+.head_option_item{
+    display: inline;
+}
+.changed_row td{
+    background-color: rgb(230, 231, 191);
+}
+.paginator{
+    text-align:center;
+    padding: 10px 0 10px; /* コンテンツ上下にスペース */
+}
+/* ローディング用 */
+#loader{
+    width: 80px;
+    height: 80px;
+    display: none;
+    position: fixed;
+    _position: absolute;     /* IE6対策 */
+    top: 50%;
+    left: 50%;
+    margin-top: -40px;       /* heightの半分のマイナス値 */
+    margin-left: -40px;      /* widthの半分のマイナス値 */
+    z-index: 10;             /* #fadeより多い値を入れて下さい */
+}
+#fade{
+    width: 100%;
+    height: 100%;
+    display: none;
+    background-color: #fff;
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    z-index: 5;              /* #loaderより少ない値を入れて下さい */
+}
+/* ローディング用ここまで */
+/* 管轄社用の折返し */
+.textwrap2{
+    max-height: 65px;
+}
+.textwrap3{
+    max-width: 650px;
+}
+
+.localcompany_dailog input{
+    max-width: unset;
+}

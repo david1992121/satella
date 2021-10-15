@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% comment %} ログアウト画面用テンプレートです
+Djangoデフォルトのものをオーバーライドしています
+{% endcomment %}
+{% block title %}ログイン{% endblock %}
+{% block content %}
+<div class="text-center">
+    <div class="mt-5">
+        <h1 id="-index">契約書INDEX</h1>
+    </div>
+    <section class="common-form">
+        {% if form.errors %}
+        <p class="error-msg">一致しませんでした。もう一度試してください。</p>
+        {% endif %} {% if next %} {% if user.is_authenticated %}
+        <p class="error-msg">あなたのアカウントはこのページにアクセスできません。 続行するには、アクセス権のあるアカウントでログインしてください。
+        </p>
+        {% else %}
+        <p class="error-msg">このページを見るにはログインしてください。</p>
+        {% endif %} {% endif %}
+        <form method="post" action="{% url 'login' %}" class="mt-5">
+            <div class="form-group w-50 p-3 container">
+                {% csrf_token %} {{ form.as_p }}
+                <div class="row">
+                    <div class="col-sm">
+                        <button type="submit" class="submit btn btn-primary">ログイン</button>
+                    </div></div><input type="hidden" name="next" value="{{ next }}" /></div>
+        </form>
+    </section>
+    <div class="mt-5">
+        対応ブラウザはChrome、IEのみです。<br>
+        動作確認済バージョンはChrome68-70、IE11です。<br><br>
+        Chromeをお使いの場合は
+        <a href='https://chrome.google.com/webstore/detail/enable-local-file-links/nikfmfgobenbhmocjaaboihbeocackld/related?hl=ja' target="_blank">
+        こちらの拡張機能</a>をインストールしていただくことで<br>
+        ファイルサーバーのリンクが正しく動作いたします。<br>
+        IEの場合はそのままお使いいただけます。<br><br>
+        Chromeをお使いの際に、PDFをChromeで開かずダウンロードしたい場合は<br>
+        右上の［ <i class="fas fa-ellipsis-v"></i> ］から［設定(S)］画面を開き、設定画面下部の［詳細設定▼］をクリックして、<br>
+        ［コンテンツの設定］、［PDF ドキュメント］の順に画面を開き、<br>
+        ［PDF ファイルを Chrome で自動的に開く代わりにダウンロードする］をONにしてください。<br><br>
+        {% comment %} <a href="mailto:dammy&#64;dammy.ne.jp">パスワード忘れの方・サポートへのメール</a> {% endcomment %}
+    </div>
+    <br>
+</div>
+{% endblock %}

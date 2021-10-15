@@ -1,0 +1,54 @@
+{% comment %} メインページのベース用テンプレートです{% endcomment %}
+{% load staticfiles %}<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <title>契約書INDEX|{% block title %}{% endblock %}</title>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+    {% comment %} ファビコンとCSS {% endcomment %}
+    <link rel="shortcut icon" type="image/png" href="{% static 'contract_index/images/favicon.ico' %}"/>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+    {% comment %} <link rel="stylesheet" type="text/css" href="{% static 'contract_index/css/tablesorterstyle.css' %}" /> {% endcomment %}
+    <link rel="stylesheet" type="text/css" href="{% static 'contract_index/css/style.css' %}" />
+    <link href="https://fonts.googleapis.com/earlyaccess/notosansjapanese.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css?family=Lato:400,900" rel="stylesheet" />
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.6.3/css/solid.css" integrity="sha384-+0VIRx+yz1WBcCTXBkVQYIBVNEFH1eP6Zknm16roZCyeNg2maWEpk/l/KsyFKs7G" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.6.3/css/fontawesome.css" integrity="sha384-jLuaxTTBR42U2qJ/pm4JRouHkEDHkVqH0T1nyQXn1mZ7Snycpf6Rl25VBNthU4z0" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-confirm/3.3.2/jquery-confirm.min.css">
+
+    {% comment %} Jquery（その他JSは原則</body>直前に配置） {% endcomment %}
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-confirm/3.3.2/jquery-confirm.min.js"></script>
+
+    {% comment %} <script type="text/javascript">
+        $('head').append(
+            '<style type="text/css">#container { display: none; } #fade, #loader { display: block; }</style>'
+        );
+        
+        jQuery.event.add(window,"load",function() { // 全ての読み込み完了後に呼ばれる関数
+            var pageH = $("#container").height();
+        
+            $("#fade").css("height", pageH).delay(900).fadeOut(800);
+            $("#loader").delay(600).fadeOut(300);
+            $("#container").css("display", "block");
+        });
+    </script> {% endcomment %}
+</head>
+<body>
+    {% comment %} <div id="loader">
+        <img src="{% static 'contract_index/images/load.gif' %}" alt="Now Loading..." width="80px" height="80px" />
+    </div>
+    <div id="fade"></div> {% endcomment %}
+    <div id="container">
+        {% block content %} {{ content }} {% endblock %}
+    </div>
+    {% comment %} 速度向上のため優先度の低いJSはこちらに記述 {% endcomment %}
+    <script type="text/javascript" src="{% static 'contract_index/js/shortcut.js' %}"></script>
+    {% comment %} <script type="text/javascript" src="{% static 'contract_index/js/jquery.tablesorter.js' %}"></script> {% endcomment %}
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.bundle.min.js" integrity="sha384-pjaaA8dDz/5BgdFUPX6M/9SUZv4d12SUPF0axWc+VRZkx5xU3daN+lYb49+Ax+Tl" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
+    <script type="text/javascript" src="{% static 'contract_index/js/textwrapper.js' %}"></script>
+    <script type="text/javascript" src="{% static 'contract_index/js/encoding.min.js' %}"></script>
+    <script type="text/javascript" src="{% static 'contract_index/js/company.js' %}"></script>
+</body>
+</html>

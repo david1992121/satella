@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% comment %} ログアウト画面用テンプレートです
+Djangoデフォルトのものをオーバーライドしています
+{% endcomment %}
+{% block title %}ログアウト{% endblock %}
+{% block content %}
+<div class="text-center">
+    <div class="mt-5">
+        <h1 id="-index">契約書INDEX</h1>
+    </div>
+    <section class="common-form">
+        {% if form.errors %}
+        <p class="error-msg">一致しませんでした。もう一度試してください。</p>
+        {% endif %} {% if next %} {% if user.is_authenticated %}
+        <p class="error-msg">あなたのアカウントはこのページにアクセスできません。 続行するには、アクセス権のあるアカウントでログインしてください。
+        </p>
+        {% else %}
+        <p class="error-msg">このページを見るにはログインしてください。</p>
+        {% endif %} {% endif %}
+        <p>ログアウトしました。</p>
+        <a href="{% url 'login' %}" class="submit btn btn-primary">ログイン</a>
+
+    </section>
+    <div class="mt-5">
+        対応ブラウザはChrome、IEのみです。<br>
+        動作確認済バージョンはChrome68-70、IE11です。<br>
+        {% comment %} <a href="mailto:dammy&#64;dammy.ne.jp">パスワード忘れの方・サポートへのメール</a> {% endcomment %}
+    </div>
+</div>
+{% endblock %}
+{% comment %} ログインページにリダイレクトする？ {% endcomment %}

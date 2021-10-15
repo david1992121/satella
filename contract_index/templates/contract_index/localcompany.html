@@ -1,0 +1,320 @@
+{% extends 'base.html' %} {% block title %}管轄社管理{% endblock %} {% block content %}
+{% comment %} 管轄社管理用テンプレートです
+現在廃止していますが、今後の要望では復活する可能性があります
+ {% endcomment %}
+ <!-- ヘッダーメニュー -->
+<div id='header'>
+  <div class="dropdown">
+    <!-- 切替ボタンの設定 -->
+    <button type="button" class="btn btn-secondary dropdown-toggle dropmenu" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true"
+      aria-expanded="false">
+      ユーザー名:{{ user.get_username }}
+    </button>
+    <!-- ドロップメニューの設定 -->
+    <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+      {% comment %} <a class="dropdown-item" href="#">アカウント設定</a> {% endcomment %}
+      <a class="dropdown-item" href="{% url 'logout' %}">ログアウト</a>
+      <div class="dropdown-divider"></div>
+        <a class="dropdown-item" href="/admin/password_change/">パスワード変更</a>
+        {% if perms.contract_index.master %}
+        <div class="dropdown-divider"></div>
+        <a class="dropdown-item" href="{% url 'admin:index' %}">設定</a>
+        {% endif %}
+    </div>
+    <!-- /.dropdown-menu -->
+  </div>
+  <!-- /.dropdown -->
+
+  <div class="taskbar">
+    <form method="post" action="">{% csrf_token %}
+      {% if perms.contract_index.csv_export %}<a href="#" id="downloadCsvBtn4ll" class="submit btn btn-primary" download="index.csv">ｴｸｽﾎﾟｰﾄ</a>{% endif %}
+      {% comment %} {% if perms.contract_index.csv_export %}<button class="btn btn-primary" disabled>ｴｸｽﾎﾟｰﾄ</button>{% endif %} {% endcomment %}
+      {% if perms.contract_index.csv_export %}<button class="btn btn-primary" disabled>ｴｸｽﾎﾟｰﾄall</button>{% endif %}
+      {% if perms.contract_index.csv_import %}<input type="submit" name="import" value="ｲﾝﾎﾟｰﾄ" class="submit btn btn-primary" disabled="disabled"></input>{% endif %}
+      {% if perms.contract_index.add_record %}<input type="submit" name="import" value="ﾚｺｰﾄﾞ追加" class="submit btn btn-primary" disabled="disabled"></input>{% endif %}
+      <input type="submit" name="searchStart" value="検索実行" class="submit btn btn-primary" disabled="disabled"></input>
+      <input type="submit" name="searchStart" value="更新ｲﾝﾎﾟｰﾄ用ｴｸｽﾎﾟｰﾄ" class="submit btn btn-primary" disabled="disabled"></input>
+      <a href="{% url 'contract_index:search' %}" class="submit btn btn-primary">検索に戻る</a>
+      {% if perms.contract_index.change_indexlocalcompany %}
+      <a href="{% url 'contract_index:restrictlocalcompany' %}" name="restrictlocalcompany" value="管轄社制限管理" class="submit btn btn-primary" tabindex="1006">管轄社制限管理</a>
+      {% endif %}
+    </form>
+  </div>
+  <div class="alert-primary infobar">
+  {% if perms.contract_index.manage_ll %}
+    {% if result %}
+      <span class='result'>{{ result }}</span>
+    {% endif %}
+    <strong>管轄社数: {{ localcompanies|length }}件</strong> 各レコードと管轄社は「法人番号」で紐付いています。変更・削除の際はお気をつけください。
+  {% else %}
+    ログイン中のアカウントでは管轄社管理機能を利用できません。
+  {% endif %}
+  </div>
+</div>
+<!-- ヘッダーメニューここまで -->
+
+<!-- メインコンテンツ -->
+<div id='contents'>
+  {% if perms.contract_index.manage_ll %}
+  <table class="table-hover text-center" id="table4ll">
+    <thead>
+      <tr>
+        <th>法人番号</th>
+        <th style='text-align:left;'>管轄社名</th>
+        <th></th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for i in localcompanies %}
+      <tr>
+        <td nowrap style='text-align:left;' name="comp_id">{{ i.id }}</td>
+        <td nowrap style='text-align:left;' name="comp_name">{{ i.local_company_name }}</td>
+        <td nowrap>
+          {% comment %} <input type="button" value="変更" class="submit btn btn-info btn-sm btn-block" onClick='change("{{ i.id }}","{{ i.local_company_name }}");'></input> {% endcomment %}
+          <button type="button" class="submit btn btn-info btn-sm btn-block" onClick='change("{{ i.id }}","{{ i.local_company_name }}");'>変更</button>
+        </td>
+        <td nowrap>
+          {% comment %} <input type="button" value="削除" class="submit btn btn-danger btn-sm btn-block" onClick='remove("{{ i.id }}","{{ i.local_company_name }}");'></input> {% endcomment %}
+          <button type="button" class="submit btn btn-danger btn-sm btn-block" onClick='remove("{{ i.id }}","{{ i.local_company_name }}");'>削除</button>
+        </td>
+      </tr>
+      {% endfor %}
+      <tr>
+        <td nowrap><input class="form-control" style='max-width:none;' id='add_id' placeholder='法人番号を入力してください。' onKeyPress="add_id_input_enter();"></td>
+        <td nowrap><input class="form-control" style='max-width:none;' id='add_name' placeholder='管轄社名を入力してください。' onKeyPress="add_input_enter();"></td>
+        <td nowrap colspan='2'>
+          {% comment %} <input type="button" name="add" value="新規追加" class="submit btn btn-success btn-sm btn-block" onClick='add();'></input> {% endcomment %}
+          <button type="button" name="add" class="submit btn btn-success btn-sm btn-block" onClick='add();'>新規追加</input>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <form method="post" action="../manage_ll/" name='main'>{% csrf_token %}
+    <input type='hidden' name='method'>
+    <input type='hidden' name='id'>
+    <input type='hidden' name='old_id'>
+    <input type='hidden' name='new_name'>
+  </form>
+  <script>
+  function change(id, name){
+      $.confirm({e: 'Prompt!',
+          title: '管轄社情報変更',
+          escapeKey: true,
+          backgroundDismiss: true,
+        content: '' +
+        '<form action="" class="localcompany_dailog">' +
+        '<div class="form-group">' +
+        '<input type="text" placeholder="法人番号" class="name form-control" id="dlg_input_id" value="' + id + '" required />' +
+        '<input type="text" placeholder="管轄会社名" class="name form-control" id="dlg_input_name" value="' + name + '"required />' +
+        '</div>' +
+        '</form>',
+        buttons: {
+            formSubmit: {
+                text: '確定',
+                btnClass: 'btn-blue',
+                action: function () {
+                    var dlg_name = this.$content.find('#dlg_input_name').val();
+                    var dlg_id = this.$content.find('#dlg_input_id').val();
+                    if(!dlg_name || !dlg_id || dlg_name == '' || dlg_id == ''){
+                        $.alert('法人番号または管轄社名を設定してください');
+                        return false;
+                    }
+
+                    if (!dlg_id.match(/^\d{13}$/)) {
+                        alert("法人番号が正しくありません");
+                        return ;
+                    }
+
+                    if(name === dlg_name && id == dlg_id){
+                        alert('変更前と同じです。');
+                        return;
+                    }
+
+                    if(name !== dlg_name && id === dlg_id){
+                        comp_names = document.getElementsByName('comp_name');
+                        for(var i = 0; i < comp_names.length; i++){
+                          if(dlg_name === comp_names[i].innerText){
+                            if(window.confirm("「" + dlg_name + "」はすでに存在します。\n統合してよろしいですか？")){
+                              console.log(dlg_name);
+                              console.log("変更・統合");
+                              document.forms.main.method.value = "combine";
+                              document.forms.main.id.value = dlg_id;
+                              document.forms.main.new_name.value = dlg_name;
+                              document.forms.main.submit();
+                              return;
+                            }
+                          }
+                        }
+
+                        document.forms.main.method.value = "change";
+                        document.forms.main.id.value = dlg_id;
+                        document.forms.main.new_name.value = dlg_name;
+                        document.forms.main.submit();
+                        return;
+                    }
+
+                    if(name === dlg_name && id !== dlg_id){
+                        comp_ids = document.getElementsByName('comp_id');
+                        for(var i = 0; i < comp_ids.length; i++){
+                          if(dlg_id === comp_ids[i].innerText){
+                              alert('法人番号は登録済です');
+                              return;
+                          }
+                        }
+
+                        document.forms.main.method.value = "change_id";
+                        document.forms.main.id.value = dlg_id;
+                        document.forms.main.old_id.value = id;
+                        document.forms.main.new_name.value = dlg_name;
+                        document.forms.main.submit();
+                        return;
+                    }
+
+                    if(name !== dlg_name && id !== dlg_id){
+                        comp_names = document.getElementsByName('comp_name');
+                        for(var i = 0; i < comp_names.length; i++){
+                          if(dlg_name === comp_names[i].innerText){
+                            if(window.confirm("「" + dlg_name + "」はすでに存在します。\n統合してよろしいですか？")){
+                              console.log(dlg_name);
+                              console.log("変更・統合");
+                              document.forms.main.method.value = "combine_with_id";
+                              document.forms.main.old_id.value = id;
+                              document.forms.main.id.value = dlg_id;
+                              document.forms.main.new_name.value = dlg_name;
+                              document.forms.main.submit();
+                              return;
+                            }
+                          }
+                        }
+
+                        document.forms.main.method.value = "change_with_id";
+                        document.forms.main.id.value = dlg_id;
+                        document.forms.main.old_id.value = id;
+                        document.forms.main.new_name.value = dlg_name;
+                        document.forms.main.submit();
+                        return;
+                    }
+                }
+            },
+            cancel: {
+                text: '取消',
+                action: function() {
+                }
+            }
+        },
+        onContentReady: function () {
+            // bind to events
+            var jc = this;
+            this.$content.find('form').on('submit', function (e) {
+                // if the user submits the form by pressing enter in the field.
+                e.preventDefault();
+                jc.$$formSubmit.trigger('click'); // reference the button and click it
+            });
+        }
+    });
+      /*
+    new_name = window.prompt("「" + name + "」と法人番号を変更します。\n新しい情報を入力してください。");
+
+    if(id === '' || new_name === ''){
+      alert('空には変更できません。');
+      return;
+    }else if(id === null || new_name === null){
+      return;
+    }else{
+      if(id === new_name){
+        alert('新しい名称が変更前と同じです。');
+        return;
+      }
+      if(name === new_name){
+        alert('管轄社名が変更前と同じです。');
+        return;
+      }else if(window.confirm("「" + name + "」を「" + new_name + "」に変更します。\nよろしいですか？")){
+        comp_names = document.getElementsByName('comp_name');
+        for(i = 0; i < comp_names.length; i++){
+          if(new_name === comp_names[i].innerText){
+            if(window.confirm("「" + new_name + "」はすでに存在します。\n統合してよろしいですか？")){
+              console.log(new_name);
+              console.log("変更・統合");
+              document.forms.main.method.value = "combine";
+              document.forms.main.id.value = id;
+              document.forms.main.new_name.value = new_name;
+              document.forms.main.submit();
+              return;
+            }
+          }
+        }
+        console.log(new_name);
+        console.log("変更");
+        document.forms.main.method.value = "change";
+        document.forms.main.id.value = id;
+        document.forms.main.new_name.value = new_name;
+        document.forms.main.submit();
+      }
+    }
+
+       */
+  }
+
+  function remove(id, name){
+    if(window.confirm("「" + name + "」を削除します。\n問題がなければOKをクリックしてください。")){
+      console.log(name);
+      console.log("削除");
+      document.forms.main.method.value = "remove";
+      document.forms.main.id.value = id;
+      document.forms.main.submit();
+    }
+  }
+
+  function add(){
+    add_id = document.getElementById('add_id').value;
+    comp_ids = document.getElementsByName('comp_id');
+
+    if (!add_id.match(/^\d{13}$/)) {
+        alert("法人番号が正しくありません");
+        return ;
+    }
+
+    for(i = 0; i < comp_ids.length; i++){
+      if(add_id === comp_ids[i].innerText){
+        alert("法人番号「" + add_id + "」は登録済です。");
+        return;
+      }
+    }
+
+    add_name = document.getElementById('add_name').value;
+    comp_names = document.getElementsByName('comp_name');
+    for(i = 0; i < comp_names.length; i++){
+      if(add_name === comp_names[i].innerText){
+        alert("会社名「" + add_name + "」はすでに存在するため作成できません。");
+        return;
+      }
+    }
+    if(window.confirm("「" + add_name + "」を追加します。\nよろしいですか？")){
+      console.log(add_name);
+      console.log("追加");
+      document.forms.main.method.value = "add";
+      document.forms.main.new_name.value = add_name;
+      document.forms.main.id.value = add_id;
+      document.forms.main.submit();
+    }
+  }
+
+  function add_input_enter(){
+    if( window.event.keyCode == 13 ){
+      add();
+    }
+  }
+
+  function add_id_input_enter(){
+    if( window.event.keyCode == 13 ){
+      $('#add_name').focus();
+    }
+  }
+  </script>
+  {% endif %}
+</div>
+{% load static %}
+<script type="text/javascript" src="{% static 'contract_index/js/table2csv4ll.js' %}"></script>
+<!-- メインコンテンツここまで -->
+{% endblock %}

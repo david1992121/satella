@@ -1,0 +1,839 @@
+{% extends 'base.html' %} {% block title %}検索{% endblock %} {% block content %}
+{% comment %} 検索開始画面用テンプレートです
+現在はログイン直後に遷移してくるページです
+{% endcomment %}
+<form method="post" action="searchresult/" target="_blank" name="search">{% csrf_token %}
+  <!-- ヘッダーメニュー -->
+  <div id='header'>
+    <div class="dropdown">
+      <!-- 切替ボタンの設定 -->
+      <button type="button" class="btn btn-secondary dropdown-toggle dropmenu" id="dropdownMenuButton"
+        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" tabindex="1005">
+        ユーザー名:{{ user.get_username }}
+      </button>
+      <!-- ドロップメニューの設定 -->
+      <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+        {% comment %} <a class="dropdown-item" href="#">アカウント設定</a> {% endcomment %}
+        <a class="dropdown-item" href="{% url 'logout' %}">ログアウト</a>
+        <div class="dropdown-divider"></div>
+        <a class="dropdown-item" href="/admin/password_change/">パスワード変更</a>
+        {% if perms.contract_index.master %}
+        <div class="dropdown-divider"></div>
+        <a class="dropdown-item" href="{% url 'admin:index' %}">設定</a>
+        {% endif %}
+      </div>
+      <!-- /.dropdown-menu -->
+    </div>
+    <!-- /.dropdown -->
+
+    <div class="taskbar">
+      {% if perms.contract_index.csv_export %}<button class="btn btn-primary" disabled>ｴｸｽﾎﾟｰﾄ</button>{% endif %}
+      {% if perms.contract_index.csv_export %}<button class="btn btn-primary" disabled>ｴｸｽﾎﾟｰﾄall</button>{% endif %}
+      {% if perms.contract_index.csv_import %}<a href="{% url 'contract_index:import_csv' %}" name="import_csv"
+        value="ｲﾝﾎﾟｰﾄ" class="submit btn btn-primary" tabindex="1001">ｲﾝﾎﾟｰﾄ</a>{% endif %}
+      {% if perms.contract_index.add_record %}<a href="{% url 'contract_index:addrecord' %}" name="addrecord"
+        value="ﾚｺｰﾄﾞ追加" class="submit btn btn-primary" tabindex="1002">ﾚｺｰﾄﾞ追加</a>{% endif %}
+      <button type="button" onclick="kouOtsuSwap('main_table', 'and')" class="btn btn-primary" style="width:150px;font-size:0.9rem;"
+        id='addAndBtn' tabindex="1003" >AND検索 行追加</button>
+      <button type="button" onclick="kouOtsuSwap('main_table', 'or')" class="btn btn-primary" style="width:150px;font-size:0.9rem;"
+        id='addOrBtn' tabindex="1003" >OR検索 行追加</button>
+      <button type="button" name="searchStart" value="検索実行" class="submit btn btn-primary" tabindex="1004"
+        onclick="searchStarter();">検索実行</button>
+      {% if perms.contract_index.csv_import %}<input type="submit" name="searchStart" value="更新ｲﾝﾎﾟｰﾄ用ｴｸｽﾎﾟｰﾄ" class="submit btn btn-primary"
+        disabled="disabled">{% endif %}
+      {% if perms.contract_index.write_localcompany %}<a href="{% url 'contract_index:localcompany' %}" name="localcompany"
+        value="管轄社管理" class="submit btn btn-primary" tabindex="1005">管轄社管理</a>{% endif %}
+      {% if perms.contract_index.change_indexlocalcompany %}<a href="{% url 'contract_index:restrictlocalcompany' %}"
+        name="restrictlocalcompany" value="管轄社制限管理" class="submit btn btn-primary"
+        tabindex="1006">管轄社制限管理</a>{% endif %}
+    </div>
+    <div class="alert-primary infobar">
+      ◇二者以上の契約当事者で検索する場合は「AND検索行追加」をご使用ください。行追加はAND行とOR行それぞれ4行まで追加可能です。<span class='shortcut_key_info'>[Ctrl + 1: AND行追加][Ctrl + 2: OR行追加]</span><br />
+      ◇半角カタカナと一部の環境依存文字は使用できません。
+    </div>
+  </div>
+  <!-- ヘッダーメニューここまで -->
+
+  <!-- メインコンテンツ -->
+  <div id='contents'>
+    <div class='head_option'>
+      <div class="form-check head_option_item">
+        ソート順
+        <input type="radio" name="sort_order" value="asc" id="sort_asc">
+        <label class="form-check-label" for="sort_asc">昇順</label>
+        <input type="radio" name="sort_order" value="desc" id="sort_desc" checked="checked">
+        <label class="form-check-label" for="sort_desc">降順</label>
+        <br>ソート項目
+        <input type="radio" name="sort_key" value="id" checked="checked" id="sort_id">
+        <label class="form-check-label" for="sort_id">No.(Default)</label>
+
+        <button class="btn btn-sm btn-outline-dark" name="special_search" value="last1000">直近1000件</button>
+        {% if perms.contract_index.view_all %}
+        <button class="btn btn-sm btn-outline-dark" name="special_search" value="all">全件</button>
+        {% endif %}
+      </div>
+    </div>
+
+    <table class="table-hover text-center" id='main_table'>
+      <thead>
+        <tr>
+          <th>
+            <input type="radio" name="sort_key" value="contract_title" id="sort_contract_title">
+            <label class="form-check-label" for="sort_contract_title">契約書名</label>
+          </th>
+          <th>
+            <input type="radio" name="sort_key" value="contract_companies" id="sort_contract_companies">
+            <label class="form-check-label" for="sort_contract_companies">契約当事者</label>
+          </th>
+
+          <th>
+            <input type="radio" name="sort_key" value="signing_date" id="sort_signing_date">
+            <label class="form-check-label" for="sort_signing_date">締結日</label>
+          </th>
+
+          <th>
+            <input type="radio" name="sort_key" value="ringi_no" id="sort_ringi_no">
+            <label class="form-check-label" for="sort_ringi_no">稟議番号</label>
+          </th>
+
+          {% if perms.contract_index.document_number %}
+          <th>
+            <input type="radio" name="sort_key" value="document_number" id="sort_document_number">
+            <label class="form-check-label" for="sort_document_number">書面番号</label>
+          </th>
+          {% endif %}
+
+          <th>
+            管轄社法人番号
+          </th>
+          <th>
+            管轄社名
+          </th>
+          {% if perms.contract_index.original_classification %}
+          <th>
+            <input type="radio" name="sort_key" value="original_classification" id="sort_original_classification">
+            <label class="form-check-label" for="sort_original_classification">原本区分</label>
+          </th>
+          {% endif %}
+
+          {% if perms.contract_index.contract_termination_flag %}
+          <th>
+            <input type="radio" name="sort_key" value="contract_termination_flag" id="sort_contract_termination_flag">
+            <label class="form-check-label" for="sort_contract_termination_flag">契約終了フラグ</label>
+          </th>
+          {% endif %}
+
+          {% if perms.contract_index.loan_guarantee_availability %}
+          <th>
+            <input type="radio" name="sort_key" value="loan_guarantee_availability"
+              id="sort_loan_guarantee_availability">
+            <label class="form-check-label" for="sort_loan_guarantee_availability">光通信Grpの債務保証有無</label>
+          </th>
+          {% endif %}
+
+          {% if perms.contract_index.pdf_path and perms.contract_index.kanrika %}
+          <th><input type="radio" name="sort_key" value="pdf_path" id="sort_pdf_path">
+            <label class="form-check-label" for="sort_pdf_path">保管場所URL</label>
+          </th>
+          {% endif %}
+          {% if perms.contract_index.hidden_flag  and perms.contract_index.admin %}
+          <th>
+            <input type="radio" name="sort_key" value="hidden_flag" id="sort_hidden_flag">
+            <label class="form-check-label" for="sort_hidden_flag">非開示</label>
+          </th>
+          {% endif %}
+          {% if perms.contract_index.original_storage_location and perms.contract_index.kanrika %}
+          <th>
+            <input type="radio" name="sort_key" value="original_storage_location" id="sort_original_storage_location">
+            <label class="form-check-label" for="sort_original_storage_location">原本保管場所</label>
+          </th>
+          {% endif %}
+
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          {% comment %} 契約書名 {% endcomment %}
+          <td>
+            <input name="conditions[0][contract_title]" type="text" onkeydown="go();" id="contract_title_text" value=""
+              tabindex="1100" />
+            <input name="conditions[0][where_type]" type="hidden" value="and" />
+            <br>
+            <div class="form-check">
+              <input name="conditions[0][contract_title_checkbox]" class="form-check-input" type="checkbox" value="0"
+                id="contract_title_checkbox" tabindex="1101">
+              <label class="form-check-label" for="contract_title_checkbox">
+                完全一致検索
+              </label>
+            </div>
+            <input name='contract_title_exclude[]' id="contract_title_exclude" type="text" onkeydown="go();"
+              placeholder="除外ワード" value="" tabindex="1102">
+          </td>
+
+          {% comment %} 契約当事者 {% endcomment %}
+          <td>
+            <input name="conditions[0][contract_companies]" type="text" onkeydown="go();" id="contract_companies_text"
+              value="" tabindex="1600" class='input_box_company' /><br>
+            <div class="form-check">
+              <input name="conditions[0][contract_companies_checkbox]" class="form-check-input" type="checkbox"
+                value="true" id="contract_companies_checkbox" tabindex="1601">
+              <label class="form-check-label" for="contract_companies_checkbox">
+                完全一致検索
+              </label>
+            </div>
+            <input name="conditions[0][contract_companies_exclude]" id="contract_companies_exclude" type="text"
+              onkeydown="go();" placeholder="除外ワード" value="" tabindex="1602" class='input_box_company'>
+          </td>
+
+          {% comment %} 締結日 {% endcomment %}
+          <td>
+            <input name="conditions[0][signing_date_from]" type="text" placeholder="yyyy/mm/dd" onkeydown="go();"
+              id="signing_date_text" value="" class='date_input_box_s' tabindex="2100" />から
+            <br>
+            <input name="conditions[0][signing_date_to]" type="text" placeholder="yyyy/mm/dd" onkeydown="go();"
+              id="signing_date_exclude" value="" class='date_input_box_s' tabindex="2101" />まで
+          </td>
+
+          {% comment %} 稟議番号 {% endcomment %}
+          <td>
+            <input name="conditions[0][ringi_no]" type="text" onkeydown="go();" id="ringi_no_text" value=""
+              tabindex="2600" />
+          </td>
+
+          {% comment %} 書面番号 {% endcomment %}
+          {% if perms.contract_index.document_number %}
+          <td>
+            <input name="conditions[0][document_number]" type="text" onkeydown="go();" id="document_number_text"
+              value="" tabindex="3100" />
+          </td>
+          {% endif %}
+
+          {% comment %} 管轄社法人番号 {% endcomment %}
+          <td>
+            {% if perms.contract_index.localcompany_number_base %}
+            元：
+            <input name="conditions[0][local_company_number_original]" type="text" onkeydown="go();"
+              id="local_company_number_original_text" value="" tabindex="3600" />
+              <br>統合：
+              {% endif %}
+            <input name="conditions[0][local_company_number_total]" type="text" onkeydown="go();"
+              id="local_company_number_total_text" value="" tabindex="3601" />
+            {% if perms.contract_index.localcompany_number_add_delete %}
+            <br><br>追加：
+              <input name="conditions[0][local_company_number_add]" type="text" onkeydown="go();"
+                id="local_company_number_add_text" value="" tabindex="3602" />
+                {% if perms.contract_index.localcompany_number_base %}
+            <br>除去：
+              <input name="conditions[0][local_company_number_delete]" type="text" onkeydown="go();"
+                id="local_company_number_delete_text" value="" tabindex="3603" />
+            {% endif %}
+            {% endif %}
+          </td>
+
+          {% comment %} 管轄社名 {% endcomment %}
+          <td>
+            <div class="leftalign ml-3">
+              <select name="conditions[0][local_company]" tabindex="4100" multiple size="4">
+                {% for i in localCompanies %}
+                <option value="{{ i.id }}">{{ i.local_company_name }}</option>
+                {% endfor %}
+              </select>
+              <br>除外選択<br>
+              <select name="conditions[0][local_company_exclude]" tabindex="4101" multiple size="4">
+                {% for i in localCompanies %}
+                <option value="{{ i.id }}">{{ i.local_company_name }}</option>
+                {% endfor %}
+              </select>
+
+            </div>
+          </td>
+
+          {% comment %} 原本区分 {% endcomment %}
+          {% if perms.contract_index.original_classification %}
+          <td>
+            <input name="conditions[0][original_classification]" tabindex="4600" type="text" onkeydown="go();" value="">
+            <br>除外選択<br>
+            <input name="conditions[0][original_classification_exclude]" tabindex="4601" type="text" onkeydown="go();"
+              value="">
+          </td>
+          {% endif %}
+
+          {% comment %} 契約終了フラグ {% endcomment %}
+          {% if perms.contract_index.contract_termination_flag %}
+          <td>
+            <input type="checkbox" name="conditions[0][contract_termination_flag]" value="true" tabindex="5100">
+          </td>
+          {% endif %}
+
+          {% comment %} 光通信Grpの債務保証有無 {% endcomment %}
+          {% if perms.contract_index.loan_guarantee_availability %}
+          <td>
+            <input name="conditions[0][loan_guarantee_availability]" type="text" onkeydown="go();"
+              id="loan_guarantee_availability_text" value="" tabindex="5600" /><br>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" value="true" id="loan_guarantee_availability_checkbox"
+                name="conditions[0][loan_guarantee_availability_checkbox]" tabindex="5601">
+              <label class="form-check-label" for="loan_guarantee_availability_checkbox">
+                完全一致検索
+              </label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" value="true" id="loan_guarantee_availability_check_blank"
+                name="conditions[0][loan_guarantee_availability_check_blank]" tabindex="5602"
+                onClick="blankCheck('loan_guarantee_availability');">
+              <label class="form-check-label" for="loan_guarantee_availability_check_blank">
+                空で検索
+              </label>
+            </div>
+            <input name="conditions[0][loan_guarantee_availability_exclude]" type="text" onkeydown="go();"
+              id="loan_guarantee_availability_exclude" placeholder="除外ワード" value="" tabindex="5603">
+          </td>
+          {% endif %}
+
+          {% comment %} 保管場所URL {% endcomment %}
+          {% if perms.contract_index.pdf_path and perms.contract_index.kanrika %}
+          <td>
+            <input name="conditions[0][pdf_path]" type="text" onkeydown="go();" id="pdf_path_text" value=""
+              tabindex="6100" />
+          </td>
+          {% endif %}
+
+          {% if perms.contract_index.hidden_flag and perms.contract_index.admin %}
+          {% comment %} 非開示 {% endcomment %}
+          <td>非開示
+            <input type="checkbox" value="true" name="conditions[0][hidden_flag]" tabindex="6600">
+          </td>
+          {% endif %}
+
+          {% if perms.contract_index.original_storage_location and perms.contract_index.kanrika %}
+          {% comment %} 原本保管場所 {% endcomment %}
+          <td>原本保管場所
+            <select name="conditions[0][original_storage_location]" tabindex="7100">
+              <option value="None"></option>
+              {% for k, v in original_storage_location_dict %}
+              <option value="{{ k }}">{{ v }}</option>
+              {% endfor %}
+            </select>
+            <br>
+            <select name="conditions[0][original_storage_location_exclude]" tabindex="7101">
+              <option value="None">除外選択</option>
+              {% for k, v in original_storage_location_dict %}
+              <option value="{{ k }}">{{ v }}</option>
+              {% endfor %}
+            </select>
+          </td>
+          {% endif %}
+
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <!-- メインコンテンツここまで -->
+</form>
+
+<script>
+  var andCount = 0;
+  var orCount = 0;
+  var isORsearch = false;
+  // ショートカットキー用
+  function go() {
+    //EnterキーならSubmit
+    if (window.event.keyCode == 13) {
+      searchStarter();
+      /*
+      if (window.navigator.userAgent.toLowerCase().indexOf('chrome') != -1) {
+        searchStarter();
+      }
+      */
+    }
+  }
+  $(function () {
+    shortcut.add("Ctrl+j", function () {
+      $("#mainbtn")[0].click();
+    });
+  });
+  $(function () {
+    shortcut.add("Ctrl+1", function () {
+      $("#addAndBtn")[0].click();
+    });
+  });
+  $(function () {
+    shortcut.add("Ctrl+2", function () {
+      $("#addOrBtn")[0].click();
+    });
+  });
+
+  function check_empty(name) {
+    let is_empty = true;
+    const contract_titles = $(`input[name="conditions[0][${name}]"]`);
+    for (const item of contract_titles) {
+      if (item.value !== '') {
+        is_empty = false;
+        break;
+      }
+    }
+    return is_empty;
+  }
+
+  function check_empty_checkbox(name) {
+    let is_empty = true;
+    const value = $(`select[name="conditions[0][${name}]"]`).val();
+
+    if (value !== 'None') {
+      is_empty = false;
+    }
+
+    return is_empty;
+  }
+
+  function check_number(name) {
+    let is_number = true;
+    const rows = $('#main_table tr').length;
+    for (let index = 0; index < rows; index++) {
+      const input = $(`input[name="conditions[${index}][${name}]"]`);
+      for (const item of input) {
+        if (item.value !== '') {
+          if (/^\d+(\d|[,]|\s)*$/gi.test(item.value) === false) {
+            is_number = false;
+            break;
+          }
+        }
+      }
+      if (!is_number) {
+        break;
+      }
+    }
+    return is_number;
+  }
+  // 無記入検査
+  function searchStarter() {
+
+    let is_empty = true;
+    is_empty = check_empty('contract_title');
+    if (is_empty) {
+      is_empty = check_empty('contract_title_exclude');
+    }
+    if (is_empty) {
+      is_empty = check_empty('contract_companies');
+    }
+    if (is_empty) {
+      is_empty = check_empty('contract_companies_exclude');
+    }
+    if (is_empty) {
+      is_empty = check_empty('signing_date_from');
+    }
+    if (is_empty) {
+      is_empty = check_empty('signing_date_to');
+    }
+    if (is_empty) {
+      is_empty = check_empty('ringi_no');
+    }
+
+    {% if perms.contract_index.document_number %}
+    if (is_empty) {
+      is_empty = check_empty('document_number');
+    }
+    {% endif %}
+
+    if (is_empty) {
+      is_empty = check_empty('local_company_number_original');
+    }
+
+    if (is_empty) {
+      is_empty = check_empty('local_company_number_total');
+    }
+
+    if (is_empty) {
+      is_empty = check_empty('local_company_number_add');
+    }
+
+    if (is_empty) {
+      is_empty = check_empty('local_company_number_delete');
+    }
+
+    if (is_empty) {
+      is_empty = check_empty('local_company');
+    }
+
+    if (is_empty) {
+      is_empty = check_empty('local_company_exclude');
+    }
+
+    if (is_empty) {
+      is_empty = check_empty('original_classification');
+    }
+
+    if (is_empty) {
+      is_empty = check_empty('original_classification_exclude');
+    }
+
+    if (is_empty) {
+      is_empty = check_empty('original_classification_exclude');
+    }
+    {% if perms.contract_index.loan_guarantee_availability %}
+    if (is_empty) {
+      is_empty = check_empty('loan_guarantee_availability');
+    }
+    if (is_empty) {
+      is_empty = check_empty('loan_guarantee_availability_exclude');
+    }
+
+    {% endif %}
+    {% if perms.contract_index.view_url %}
+    if (is_empty) {
+      is_empty = check_empty('pdf_path');
+    }
+    {% endif %}
+    if (is_empty) {
+      is_empty = check_empty_checkbox('local_company');
+    }
+
+    if (is_empty) {
+      is_empty = check_empty_checkbox('local_company_exclude');
+    }
+    {% if perms.contract_index.manage_ll %}
+    if (is_empty) {
+      is_empty = check_empty_checkbox('original_storage_location');
+    }
+    if (is_empty) {
+      is_empty = check_empty_checkbox('original_storage_location_exclude');
+    }
+    {% endif %}
+    if (is_empty) {
+      alert("どれか一つ入力してください。");
+    } else {
+      document.search.submit();
+    }
+
+  }
+
+  // 甲乙入れ替え複製用
+  function kouOtsuSwap(id, where_type) {
+
+    if (where_type == 'and'){
+      andCount ++;
+    }else if (where_type == 'or'){
+      orCount ++;
+    }
+
+    // テーブル取得
+    var table = document.getElementById(id);
+
+    // And-OR ラベル追加
+    var cols = table.rows[0].cells.length;
+    var label_row = table.insertRow(-1);
+    label_row.innerHTML = `<td colspan="${cols}" style="text-align: ${where_type == 'or' ? 'left' : 'center'}">${where_type == 'or' ? 'OR' : 'AND'}</td>`;
+
+    // 行を行末に追加
+    var row = table.insertRow(-1);
+
+    // /////////////////////////////////// セルの挿入
+    var cell_contract_title = row.insertCell(-1);
+
+    var cell_contract_companies = row.insertCell(-1);
+    var cell_signing_date = row.insertCell(-1);
+
+    var cell_ringi_no = row.insertCell(-1);
+
+    {% if perms.contract_index.document_number %}
+    var cell_document_number = row.insertCell(-1);
+    {% endif %}
+
+    // 管轄社法人番号
+    var cell_local_company_number = row.insertCell(-1);
+
+    // 管轄社名
+    var cell_local_company = row.insertCell(-1);
+
+    // 原本区分
+    {% if perms.contract_index.original_classification %}
+    var cell_original_classification = row.insertCell(-1);
+    {% endif %}
+
+    // 契約終了フラグ
+    {% if perms.contract_index.contract_termination_flag %}
+    var cell_contract_termination_flag = row.insertCell(-1);
+    {% endif %}
+
+    // 光通信Grpの債務保証有無
+    {% if perms.contract_index.loan_guarantee_availability %}
+    var cell_loan_guarantee_availability = row.insertCell(-1);
+    {% endif %}
+
+    // 保管場所URL
+    {% if perms.contract_index.pdf_path %}
+    var cell_pdf_path = row.insertCell(-1);
+    {% endif %}
+
+    // 非開示
+    {% if perms.contract_index.hidden_flag %}
+    var cell_hidden_flag = row.insertCell(-1);
+    {% endif %}
+
+    // 原本保管場所
+    {% if perms.contract_index.original_storage_location  and perms.contract_index.kanrika　%}
+    var cell_original_storage_location = row.insertCell(-1);
+    {% endif %}
+    // var cell_remarks = row.insertCell(-1);
+
+    // NO
+    // var cell_id = row.insertCell(-1);
+
+    // 行数取得
+    var row_num = table.rows.length - 1;
+
+
+    // //////////////////////////////////////// 入力値の取得 copy
+
+    const input_contract_title = document.search.contract_title?.value;
+
+    const input_contract_title_exclude = document.search.contract_title_exclude?.value;
+
+    const input_contract_companies = document.search.contract_companies?.value;
+    const input_contract_companies_exclude = document.search.contract_companies_exclude?.value;
+
+    const input_signing_date_from = document.search.signing_date_from?.value ? document.search.signing_date_from?.value : '';
+    const input_signing_date_to = document.search.signing_date_to?.value ? document.search.signing_date_to?.value : '';
+
+
+    const input_ringi_no = document.search.ringi_no?.value ? document.search.ringi_no?.value : '';
+
+    {% if perms.contract_index.document_number %}
+    const input_document_number = document.search.document_number?.value;
+    {% endif %}
+
+
+    {% if perms.contract_index.loan_guarantee_availability %}
+    const input_loan_guarantee_availability = document.search.loan_guarantee_availability?.value ? document.search.loan_guarantee_availability?.value : '';
+    const input_loan_guarantee_availability_exclude = document.search.loan_guarantee_availability_exclude?.value;
+    {% endif %}
+
+    {% if perms.contract_index.pdf_path %}
+    const input_pdf_path = document.search.pdf_path?.value ? document.search.pdf_path?.value : '';
+    {% endif %}
+
+    {% if perms.contract_index.original_storage_location %}
+    const input_original_storage_location = document.search.original_storage_location?.value;
+    const input_original_storage_location_exclude = document.search.original_storage_location_exclude?.value;
+    {% endif %}
+
+
+    var input_id;
+
+    // ///////////////////////////// セルの内容入力
+    // sample.innerHTML = ['', '', ''].join("");
+    // 追加される行については、「空で検索」が入らない
+
+    // ■パネル追加　契約書名
+    if (where_type === 'or') {
+      cell_contract_title.innerHTML = `<input name="conditions[${row_num}][contract_title]" type="text" onkeydown="go();" value="${input_contract_title ? input_contract_title : ''}" tabindex="${(row_num * 10 + 1101)}">
+          <input name="conditions[${row_num}][where_type]" type="hidden" value="${where_type}">
+          <br>
+          <div class="form-check">
+          <input name="conditions[${row_num}][contract_title_checkbox[]" class="form-check-input" type="checkbox" value="true" id="contract_title_checkbox${row_num}"  tabindex="${(row_num * 10 + 1102)}">
+          <label class="form-check-label" for="contract_title_checkbox${row_num}">完全一致検索</label>
+          </div>
+          <input name="conditions[${row_num}][contract_title_exclude]" type="text" onkeydown="go();" placeholder="除外ワード" value="${input_contract_title_exclude}" tabindex="${row_num * 10 + 1103}">`;
+    } else {
+      cell_contract_title.innerHTML = `<input name="conditions[${row_num}][where_type]" type="hidden" value="${where_type}">`;
+    }
+
+
+    // ■パネル追加　契約当事者
+    cell_contract_companies.innerHTML = [
+      `<input name="conditions[${row_num}][contract_companies]" type="text" onkeydown="go();" value="${input_contract_companies ? input_contract_companies : ''}" tabindex="${row_num * 10 + 1601}" class="input_box_company">
+          <br>
+          <div class="form-check">
+          <input name="conditions[${row_num}][contract_companies_checkbox]" class="form-check-input" type="checkbox" value="${row_num}" id="contract_companies_checkbox${row_num}" tabindex="${row_num * 10 + 1602}">
+          <label class="form-check-label" for="contract_companies_checkbox${row_num}">完全一致検索</label>
+          </div>
+          <input name="conditions[${row_num}][contract_companies_exclude]" type="text" onkeydown="go();" placeholder="除外ワード" value="${input_contract_companies_exclude}" tabindex="${row_num * 10 + 1603}" class="input_box_company">`
+    ].join("");
+
+    // ■パネル追加　締結日
+    if (where_type === 'or') {
+      cell_signing_date.innerHTML =
+        `<input name="conditions[${row_num}][signing_date_from]" type="text" placeholder="yyyy/mm/dd" onkeydown="go();" value="${input_signing_date_from}" class="date_input_box_s" tabindex="${row_num * 10 + 2101}">
+          から
+          <br>
+          <input name="conditions[${row_num}][signing_date_to]" type="text" placeholder="yyyy/mm/dd" onkeydown="go();" value="${input_signing_date_to}" class="date_input_box_s" tabindex="${row_num * 10 + 2102}">
+          まで`;
+
+
+      cell_ringi_no.innerHTML = `<input name="conditions[${row_num}][ringi_no]" type="text" onkeydown="go();" id="ringi_no_text" value="${input_ringi_no}" tabindex="${row_num * 10 + 2601}"/>`;
+
+    // ■パネル追加　書面番号
+    {% if perms.contract_index.document_number %}
+      cell_document_number.innerHTML =
+        `<input name="conditions[${row_num}][document_number]" type="text" onkeydown="go();" id="document_number_text" value="${input_document_number ? input_document_number : ''}" tabindex="${row_num * 10 + 3101}"/>`;
+      {% endif %}
+    }
+
+
+    // ■パネル追加　法人番号
+    cell_local_company_number.innerHTML = [
+    {% if perms.contract_index.localcompany_number_base %}
+      '元：',
+      `<input name="conditions[${row_num}][local_company_number_original]" type="text" onkeydown="go();" id="local_company_number_original_text" value="" tabindex="${row_num * 10 + 3601}"/>`,
+      '<br>統合：',
+    {% endif %}
+      `<input name="conditions[${row_num}][local_company_number_total]" type="text" onkeydown="go();" id="local_company_number_total_text" value="" tabindex="${row_num * 10 + 3602}"/>`
+      {% if perms.contract_index.localcompany_number_add_delete %}
+        ,'<br><br>追加：',
+      `<input name="conditions[${row_num}][local_company_number_add]" type="text" onkeydown="go();" id="local_company_number_add_text" value="" tabindex="${row_num * 10 + 3603}"/>`,
+        '<br>除去：',
+      `<input name="conditions[${row_num}][local_company_number_delete]" type="text" onkeydown="go();" id="local_company_number_delete_text" value="" tabindex="${row_num * 10 + 3604}"/>`
+      {% endif %}
+    ].join("");
+
+    // ■パネル追加　管轄社名
+    if (where_type === 'or') {
+      cell_local_company.innerHTML = [
+        '<div class="leftalign ml-3">',
+        `<select name="conditions[${row_num}][local_company]" tabindex="${row_num * 10 + 4101}" multiple size="4">`,
+        '{% for i in localCompanies %}',
+        '<option value="{{ i.id }}">{{ i.local_company_name }}</option>',
+        '{% endfor %}',
+        '</select>',
+        '<br>除外選択<br>',
+        `<select name="conditions[${row_num}][local_company_exclude]" tabindex="${row_num * 10 + 4102}" multiple size="4">`,
+        '{% for i in localCompanies %}',
+        '<option value="{{ i.id }}">{{ i.local_company_name }}</option>',
+        '{% endfor %}',
+        '</select>'
+      ].join("");
+
+
+    // ■パネル追加　原本区分
+    cell_original_classification.innerHTML = [
+        `<input name="conditions[${row_num}][original_classification]" tabindex="${row_num * 10 + 4601}" type="text" onkeydown="go();">`,
+        '<br>除外選択<br>',
+        `<input name="conditions[${row_num}][original_classification_exclude]" tabindex="${row_num * 10 + 4602}" type="text" onkeydown="go();">`
+      ].join("");
+
+    // ■パネル追加　契約終了フラグ
+    cell_contract_termination_flag.innerHTML = [
+        `<input type="checkbox" name="conditions[${row_num}][contract_termination_flag]" value="true" tabindex="${row_num * 10 + 5101}">`,
+        ''
+      ].join("");
+    }
+
+    // ■パネル追加　光通信Grpの債務保証有無
+    {% if perms.contract_index.loan_guarantee_availability %}
+    cell_loan_guarantee_availability.innerHTML = [
+      `<input name="conditions[${row_num}][loan_guarantee_availability]" type="text" onkeydown="go();" value="${input_loan_guarantee_availability}" tabindex="${row_num * 10 + 5601}">`,
+      '</input><br><div class="form-check">',
+      `<input name="conditions[${row_num}][loan_guarantee_availability_checkbox]" class="form-check-input" type="checkbox" value="true" id="loan_guarantee_availability_checkbox${row_num}"  tabindex="${row_num * 10 + 5602}">`,
+      '<label class="form-check-label" for="loan_guarantee_availability_checkbox' + row_num + '">完全一致検索</label>',
+      '</div>',
+      `<input name="conditions[${row_num}][loan_guarantee_availability_exclude]" type="text" onkeydown="go();" placeholder="除外ワード" value="${input_loan_guarantee_availability_exclude}" tabindex="${row_num * 10 + 5603}">`
+    ].join("");
+    {% endif %}
+    if (where_type === 'or') {
+
+    // ■パネル追加　保管場所URL
+    {% if perms.contract_index.view_url %}
+      cell_pdf_path.innerHTML = [
+        `<input name="conditions[${row_num}][pdf_path]" type="text" onkeydown="go();" id="pdf_path_text" value="${input_pdf_path}" tabindex="${row_num * 10 + 6101}"/>`,
+        ''
+      ].join("");
+      {% endif %}
+
+    // ■パネル追加　非表示
+    {% if perms.contract_index.hidden_flag %}
+      cell_hidden_flag.innerHTML = [
+        `<input name="conditions[${row_num}][hidden_flag]" type="checkbox" value="true" tabindex="${row_num * 10 + 6601}">`,
+        ''
+      ].join("");
+      {% endif %}
+
+    // ■パネル追加　原本保管場所
+    {% if perms.contract_index.original_storage_location %}
+      cell_original_storage_location.innerHTML = [
+        `<select name="conditions[${row_num}][original_storage_location]" tabindex="${row_num * 10 + 7101}">`,
+        '<option value="None"></option>',
+        '{% for k, v in original_storage_location_dict %}',
+        '<option value="{{ k }}">{{ v }}</option>',
+        '{% endfor %}',
+        '</select>',
+        '<br>',
+        `<select name="conditions[${row_num}][original_storage_location_exclude]" tabindex="${row_num * 10 + 7102}">`,
+        '<option value="None">除外選択</option>',
+        '{% for k, v in original_storage_location_dict %}',
+        '<option value="{{ k }}">{{ v }}</option>',
+        '{% endfor %}',
+        '</select>'
+      ].join("");
+      {% endif %}
+    }
+
+    if(andCount > 3){
+      $("#addAndBtn").attr("disabled", "disabled");
+    }
+    if(orCount > 3){
+      $("#addOrBtn").attr("disabled", "disabled");
+    }
+
+    // cell_id.innerHTML = '';
+
+//     // OR検索モードをONにしてボタンを無効化
+//     if (row_num >= 6) {
+//       document.getElementById('kouOtsuSwapbtn').setAttribute("disabled", "disabled");
+//       document.getElementById('contract_title_checkbox').setAttribute("disabled", "disabled");
+//     }
+  }
+  // 空で検索ボタン
+  function blankCheck(id) {
+    var checkBtn = document.getElementById(id + '_check_blank');
+    if (checkBtn.checked) {
+      document.getElementById(id + '_text').value = "";
+      document.getElementById(id + '_text').readOnly = true;
+      document.getElementById(id + '_exclude').value = "";
+      document.getElementById(id + '_exclude').readOnly = true;
+      document.getElementById(id + '_checkbox').checked = false;
+      document.getElementById(id + '_checkbox').disabled = true;
+    } else {
+      document.getElementById(id + '_text').readOnly = false;
+      document.getElementById(id + '_exclude').readOnly = false;
+      document.getElementById(id + '_checkbox').disabled = false;
+    }
+  }
+  // 管轄社用空で検索ボタン
+  function blankCheckLocalComp() {
+    var checkBtn = document.getElementById('local_company_check_blank');
+    if (checkBtn.checked) {
+      for (var i = 1; i < 6; i++) {
+        if (i == 2) {
+          continue;
+        }
+        document.getElementById("local_company_" + i).disabled = true;
+      }
+    } else {
+      for (var i = 1; i < 6; i++) {
+        if (i == 2) {
+          continue;
+        }
+        document.getElementById("local_company_" + i).disabled = false;
+      }
+    }
+  }
+  // ieでは直近１０００件消す
+  $(function () {
+    var agent = window.navigator.userAgent.toLowerCase();
+    var ie11 = (agent.indexOf('trident/7') !== -1);
+    if (ie11) {
+      $("button[name='special_search']").remove();
+    }
+  });
+  $(document).keydown(function () {
+    //go();
+    if (window.event.keyCode == 13) {
+      return false;
+    }
+  });
+</script>
+{% load staticfiles %}
+<script type="text/javascript" src="{% static "contract_index/js/jquery.balloon.min.js" %}"></script>
+<script type="text/javascript" src="{% static "contract_index/js/lcviewer.js" %}"></script>
+
+{% endblock %}

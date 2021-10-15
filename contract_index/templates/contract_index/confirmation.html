@@ -1,0 +1,90 @@
+{% extends 'base.html' %} {% block title %}メイン{% endblock %} {% block content %}
+{% comment %} 一括反映の確認表示用テンプレートです{% endcomment %}
+<!-- ヘッダーメニュー -->
+<div id='header'>
+  <div class="dropdown">
+    <!-- 切替ボタンの設定 -->
+    <button type="button" class="btn btn-secondary dropdown-toggle dropmenu" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true"
+      aria-expanded="false">
+      ユーザー名:{{ user.get_username }}
+    </button>
+    <!-- ドロップメニューの設定 -->
+    <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+      <a class="dropdown-item" href="{% url 'logout' %}">ログアウト</a>
+      <div class="dropdown-divider"></div>
+        <a class="dropdown-item" href="/admin/password_change/">パスワード変更</a>
+        {% if perms.contract_index.master %}
+        <div class="dropdown-divider"></div>
+        <a class="dropdown-item" href="{% url 'admin:index' %}">設定</a>
+        {% endif %}
+    </div>
+    <!-- /.dropdown-menu -->
+  </div>
+  <!-- /.dropdown -->
+
+  <div class="taskbar">
+    <form method="post" action="">{% csrf_token %}
+      <a href="{% url 'contract_index:search' %}" class="submit btn btn-primary">再検索</a>
+    </form>
+    <div class="alert-primary infobar">
+      <span class='result'>
+        一括反映の確認画面：以下の内容へ変更します。よろしければ「一括更新」ボタンを押してください。
+      </span>
+    </div>
+  </div>
+</div>
+<!-- ヘッダーメニューここまで -->
+
+<!-- メインコンテンツ -->
+<div id='contents'>
+    <table class="text-center tablesorter table-hover" id="sorter">
+    <thead>
+        <tr>
+            <th>契約書名</th>
+            <th>契約当事者</th>
+            <th>管轄社法人番号（元データ）</th>
+            <th>管轄社法人番号（追加データ）</th>
+            <th>管轄社法人番号（除去データ）</th>
+            <th>管轄社法人番号（統合データ）</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for i in view_indexs %}
+        <tr>
+            <td>{{ i.contract_title }}</td>
+            <td>{{ i.contract_companies }}</td>
+            <td>{{ i.base }}</td>
+            <td>{{ i.add }}</td>
+            <td>{{ i.delete }}</td>
+            <td>{{ i.after }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+    </table>
+
+    <div class="">
+        <form method="post" action="{% url 'contract_index:searchresult' %}" id='post_holder'>
+            {% csrf_token %}
+            <!-- POST保持機能 -->
+            {% comment %} <input type="hidden" name="sort_order" value="{{ sort_order }}">
+            <input type="hidden" name="sort_key" value="{{ sort_key }}"> {% endcomment %}
+            {% if post_dict %}
+            {% for k,v in post_dict.items %}
+                {% if 'csrfmiddlewaretoken' == k or 'off_set' == k %}
+                {% else %}
+                    {% for v0 in v %}
+                        {% comment %} {{ k }}:{{ v0 }}<br> {% endcomment %}
+                        <input type="hidden" name="{{ k }}" value="{{ v0 }}">
+                    {% endfor %}
+                {% endif %}
+            {% endfor %}
+            {% endif %}
+            <button type='submit' name="confirmation" value="ikkatuhannei" class="submit btn btn-info btn-sm btn-block">一括反映</button>
+            <button type='submit' name="" value="" class="submit btn btn-info btn-sm btn-block">キャンセル</button>
+        </form>
+    </div>
+</div>
+<!-- メインコンテンツここまで -->
+<script>
+</script>
+{% endblock %}

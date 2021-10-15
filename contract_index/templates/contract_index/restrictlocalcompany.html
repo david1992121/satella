@@ -1,0 +1,133 @@
+{% extends 'base.html' %} {% block title %}管轄社制限管理{% endblock %} {% block content %}
+{% comment %} 管轄社管理用テンプレートです
+現在廃止していますが、今後の要望では復活する可能性があります
+ {% endcomment %}
+ <!-- ヘッダーメニュー -->
+<div id='header'>
+  <div class="dropdown">
+    <!-- 切替ボタンの設定 -->
+    <button type="button" class="btn btn-secondary dropdown-toggle dropmenu" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true"
+      aria-expanded="false">
+      ユーザー名:{{ user.get_username }}
+    </button>
+    <!-- ドロップメニューの設定 -->
+    <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+      {% comment %} <a class="dropdown-item" href="#">アカウント設定</a> {% endcomment %}
+      <a class="dropdown-item" href="{% url 'logout' %}">ログアウト</a>
+      <div class="dropdown-divider"></div>
+        <a class="dropdown-item" href="/admin/password_change/">パスワード変更</a>
+        {% if perms.contract_index.master %}
+        <div class="dropdown-divider"></div>
+        <a class="dropdown-item" href="{% url 'admin:index' %}">設定</a>
+        {% endif %}
+    </div>
+    <!-- /.dropdown-menu -->
+  </div>
+  <!-- /.dropdown -->
+
+  <div class="taskbar">
+    <form method="post" action="">{% csrf_token %}
+      {% if perms.contract_index.csv_export %}<a href="#" id="downloadCsvBtn4ll" class="submit btn btn-primary" download="index.csv">ｴｸｽﾎﾟｰﾄ</a>{% endif %}
+      {% comment %} {% if perms.contract_index.csv_export %}<button class="btn btn-primary" disabled>ｴｸｽﾎﾟｰﾄ</button>{% endif %} {% endcomment %}
+      {% if perms.contract_index.csv_export %}<button class="btn btn-primary" disabled>ｴｸｽﾎﾟｰﾄall</button>{% endif %}
+      {% if perms.contract_index.csv_import %}<input type="submit" name="import" value="ｲﾝﾎﾟｰﾄ" class="submit btn btn-primary" disabled="disabled"></input>{% endif %}
+      {% if perms.contract_index.add_record %}<input type="submit" name="import" value="ﾚｺｰﾄﾞ追加" class="submit btn btn-primary" disabled="disabled"></input>{% endif %}
+      <input type="submit" name="kouOtsuSwap" value="OR検索 行追加" class="submit btn btn-primary" disabled="disabled"></input>
+      <input type="submit" name="searchStart" value="検索実行" class="submit btn btn-primary" disabled="disabled"></input>
+      <input type="submit" name="searchStart" value="更新ｲﾝﾎﾟｰﾄ用ｴｸｽﾎﾟｰﾄ" class="submit btn btn-primary" disabled="disabled"></input>
+      <a href="{% url 'contract_index:localcompany' %}" name="localcompany" value="管轄社管理" class="submit btn btn-primary" tabindex="1005">管轄社管理</a>
+      <a href="{% url 'contract_index:search' %}" class="submit btn btn-primary">検索に戻る</a>
+    </form>
+  </div>
+  <div class="alert-primary infobar">
+  {% if perms.contract_index.manage_ll %}
+    {% if result %}
+      <span class='result'>{{ result }}</span>
+    {% endif %}
+    <strong>有効ユーザー数: {{ users|length }}件</strong> 管轄社制限に<b>記載がある管轄社のみ閲覧可能</b>です。記載がない場合は<b>制限なし</b>となります。
+  {% else %}
+    ログイン中のアカウントでは管轄社管理機能を利用できません。
+  {% endif %}
+  </div>
+</div>
+<!-- ヘッダーメニューここまで -->
+
+<!-- メインコンテンツ -->
+<div id='contents'>
+  {% if perms.contract_index.manage_ll %}
+  <table class="table-hover text-center" id="table4ll">
+    <thead>
+      <tr>
+        <th>No.</th>
+        <th style='text-align:left;'>ユーザー名</th>
+        <th style='text-align:left;'>氏名</th>
+        <th style='text-align:left;'>管轄社制限</th>
+        <th></th>
+        <th></th>
+        {% if users|length == 1 %}
+        <th></th>
+        {% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for i in users %}
+      <tr>
+        <td nowrap>{{ i.id }}</td>
+        <td nowrap style='text-align:left;' name="username">{{ i.username }}</td>
+        <td nowrap style='text-align:left;'>{{ i.last_name }} {{ i.first_name }}</td>
+        <td class='textwrap3' style='text-align:left;' name="restricted">{% for j in restrictlocalcompany %}{% if j.user_id == i.id %}{{j.local_company.local_company_name}}/{% endif %}{% endfor %}</td>
+        <td nowrap>
+          {% comment %} <input type="button" value="変更" class="submit btn btn-info btn-sm btn-block" onClick='change("{{ i.id }}","{{ i.local_company_name }}");'></input> {% endcomment %}
+          <button type="button" class="submit btn btn-info btn-sm btn-block" onClick='change("{{ i.id }}","{{ i.username }}");'>変更</button>
+        </td>
+        <td nowrap>
+          <button type="button" class="submit btn btn-warning btn-sm btn-block" onClick='copy("{{ i.id }}","{{ i.username }}");'>コピー</button>
+        </td>
+        {% comment %} 変更後に一覧に戻るボタンを追加 {% endcomment %}
+        {% if users|length == 1 %}
+        <td nowrap>
+          <a href="{% url 'contract_index:restrictlocalcompany' %}" class="submit btn btn-success btn-sm btn-block">一覧に戻る</a>
+        </td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <form method="post" action="../restrictlocalcompanydetails/" name='main'>{% csrf_token %}
+    <input type='hidden' name='id'>
+  </form>
+  <form method="post" action="../restrictlocalcompanycopy/" name='main2'>{% csrf_token %}
+    <input type='hidden' name='id'>
+    <input type='hidden' name='targets'>
+  </form>
+  <script>
+  function change(id, name){
+    document.forms.main.id.value = id;
+    document.forms.main.submit();
+  }
+  function copy(id, name){
+    targets = window.prompt("コピー先のユーザーNo.を半角数字で入力してください。\n半角カンマ区切りで複数指定できます。\n存在しないNo.はスキップされます。");
+    if(targets.match(/[^0-9,]+/) || !targets.match(/\d/)){
+      alert('入力内容が不正です。エラー1');
+      return false;
+    }
+    targetList = targets.split(',');
+    for(i = 0; i < targetList.length; i++){
+      console.log(targetList[i]);
+      if(isNaN(targetList[i]) || targetList[i] === ''){
+        alert('入力内容が不正です。エラー2');
+        return false;
+      }
+    }
+    if(window.confirm(id + 'の管轄社制限を' + targets + 'へコピーします。')){
+      {% comment %} alert('実行'); {% endcomment %}
+      document.forms.main2.id.value = id;
+      document.forms.main2.targets.value = targets;
+      document.forms.main2.submit();
+    }
+  }
+  </script>
+  {% endif %}
+</div>
+<!-- メインコンテンツここまで -->
+{% endblock %}

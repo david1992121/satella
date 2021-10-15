@@ -1,0 +1,956 @@
+{% extends 'base.html' %} {% block title %}メイン{% endblock %} {% block content %}
+    {% comment %} 検索結果表示用テンプレートです{% endcomment %}
+<style>
+
+.sticky_table thead th {
+  /* 縦スクロール時に固定する */
+  position: -webkit-sticky;
+  position: sticky;
+  top: 0;
+  /* tbody内のセルより手前に表示する */
+  z-index: 1;
+}
+
+.sticky_table_wrapper {
+  overflow: scroll;
+  width: calc(100vw - 1rem);
+  height: 75vh;
+}
+
+
+</style>
+    <!-- ヘッダーメニュー -->
+    <div id='header'>
+        <div class="dropdown">
+            <!-- 切替ボタンの設定 -->
+            <button type="button" class="btn btn-secondary dropdown-toggle dropmenu" id="dropdownMenuButton"
+                    data-toggle="dropdown" aria-haspopup="true"
+                    aria-expanded="false">
+                ユーザー名:{{ user.get_username }}
+            </button>
+            <!-- ドロップメニューの設定 -->
+            <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                {% comment %} <a class="dropdown-item" href="#">アカウント設定</a> {% endcomment %}
+                <a class="dropdown-item" href="{% url 'logout' %}">ログアウト</a>
+                <div class="dropdown-divider"></div>
+        <a class="dropdown-item" href="/admin/password_change/">パスワード変更</a>
+        {% if perms.contract_index.master %}
+        <div class="dropdown-divider"></div>
+        <a class="dropdown-item" href="{% url 'admin:index' %}">設定</a>
+        {% endif %}
+            </div>
+            <!-- /.dropdown-menu -->
+        </div>
+        <!-- /.dropdown -->
+
+        <div class="taskbar">
+            <form method="post" action="">{% csrf_token %}
+                {% if perms.contract_index.csv_export %}<a href="#" id="downloadCsvBtn" class="submit btn btn-primary"
+                                                           download="index.csv">ｴｸｽﾎﾟｰﾄ</a>{% endif %}
+                {% if perms.contract_index.csv_export %}
+                    <a href="#" class="submit btn btn-primary" onclick='export_all_confirm();'>ｴｸｽﾎﾟｰﾄall</a>{% endif %}
+                {% if perms.contract_index.csv_import %}
+                    <input type="submit" name="import" value="ｲﾝﾎﾟｰﾄ" class="submit btn btn-primary"
+                           disabled="disabled"></input>{% endif %}
+                {% if perms.contract_index.add_record %}
+                    <input type="submit" name="addrecord" value="ﾚｺｰﾄﾞ追加" class="submit btn btn-primary"
+                           disabled="disabled"></input>{% endif %}
+                {% comment %} <input type="submit" name="company" value="会社名ﾃｰﾌﾞﾙへ" class="submit btn btn-primary" disabled="disabled"></input> {% endcomment %}
+                {% comment %} <input type="submit" name="localCompany" value="管轄社ﾃｰﾌﾞﾙへ" class="submit btn btn-primary" disabled="disabled"></input> {% endcomment %}
+                {% comment %} <input type="submit" name="searchChange" value="検索実行" class="submit btn btn-primary" disabled="disabled"></input> {% endcomment %}
+                <a href="{% url 'contract_index:search' %}" name="search" value="条件ｸﾘｱ" class="submit btn btn-primary">条件ｸﾘｱ</a>
+                {% comment %} CSVエクスポートのログ用 廃止 {% endcomment %}
+                {% comment %} <a href="{% url 'contract_index:csv_exported' %}" id="csv_exported" name="csv_exported" style="display:none"></a> {% endcomment %}
+                {% if perms.contract_index.csv_import %}<a href="#" class="submit btn btn-primary"
+                                                           onclick='export_all4update_confirm();'>更新ｲﾝﾎﾟｰﾄ用ｴｸｽﾎﾟｰﾄ</a>{% endif %}
+                {% if perms.contract_index.write_localcompany %}
+                    <a href="{% url 'contract_index:localcompany' %}" name="localcompany" value="管轄社管理"
+                       class="submit btn btn-primary">管轄社管理</a>{% endif %}
+                {% if perms.contract_index.change_indexlocalcompany %}
+                    <a href="{% url 'contract_index:restrictlocalcompany' %}" name="restrictlocalcompany"
+                       value="管轄社制限管理" class="submit btn btn-primary" tabindex="1006">管轄社制限管理</a>{% endif %}
+            </form>
+            <div class="alert-primary infobar">
+                表示件数: <b>{{ indexes|length }}</b>件, 該当件数: 全<b>{{ count }}</b>件, 表示レコード:
+                <b>{{ start_rec }}</b>～<b>{{ end_rec }}</b>件目, ページ:
+                <b>{{ current_page_num }}</b>/<b>{{ all_page_num }}</b>
+                <span class='result'>
+      {% comment %} SQL発行数をへらすための記述 {% endcomment %}
+                    {% if 'しました' in result %}
+                        {{ result }}
+                    {% else %}
+                        {% if indexes|length > 0 %}
+                            検索完了しました。{{ result }}
+                        {% else %}
+                            検索完了しました。{{ result }}
+                        {% endif %}
+                    {% endif %}</span>
+            </div>
+        </div>
+    </div>
+    <!-- ヘッダーメニューここまで -->
+
+    <!-- メインコンテンツ -->
+    <div id='contents' style="padding-top: 74px; width:100%;">
+        <form method="post" action="{% url 'contract_index:searchresult' %}" id='post_holder'>{% csrf_token %}
+            <div class="form-check head_option_item">
+                <input type="radio" name="sort_order" value="asc" id="sort_asc"
+                       {% if sort_order == 'asc' %}checked="checked"{% endif %}>
+                <label class="form-check-label" for="sort_asc">昇順</label>
+                <input type="radio" name="sort_order" value="desc" id="sort_desc"
+                       {% if sort_order == 'asc' %}{% else %}checked="checked"{% endif %}>
+                <label class="form-check-label" for="sort_desc">降順</label>
+                {% comment %} ソートキーの保持 {% endcomment %}
+                <input type="hidden" name="sort_key" value="{{ sort_key }}">
+            </div>
+
+            <!-- POST保持機能 -->
+            <div id="post_hold" style="margin:0px;">
+                {% if post_dict %}
+                    {% for k,v in post_dict.items %}
+                        {% if 'sort_key' == k or 'sort_order' == k %}
+                        {% endif %}
+                        {% if 'csrfmiddlewaretoken' == k or 'off_set' == k %}
+                        {% else %}
+                            {% for v0 in v %}
+                                {% comment %} {{ k }}:{{ v0 }}<br> {% endcomment %}
+                                <input type="hidden" name="{{ k }}" value="{{ v0 }}">
+                            {% endfor %}
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+                {% if count > 100 %}
+                    <div class='paginator' style="margin-top:0px;padding:0px;">
+                        <input type="hidden" name="sort_key" value="{{ sort_key }}">
+                        <input type="hidden" name="sort_order" value="{{ sort_order }}">
+                        <button type='submit' name='off_set' value='0' class="submit btn btn-info"
+                                {% if 1 == current_page_num %} disabled="disabled"{% endif %}>＜＜
+                        </button>
+                        <button type='submit' name='off_set' value='{{ current_page_num|add:-11 }}'
+                                class="submit btn btn-info"{% if 1 == current_page_num or current_page_num < 11 %}
+                                disabled="disabled"{% endif %}>＜10
+                        </button>
+                        <button type='submit' name='off_set' value='{{ current_page_num|add:-2 }}'
+                                class="submit btn btn-info"{% if 1 == current_page_num %}
+                                disabled="disabled"{% endif %}>＜
+                        </button>
+                        ・
+                        {% for i in range_page_btns %}
+                            {% if i < all_page_num %}
+                                {% comment %} 最初から1~3ページ目 {% endcomment %}
+                                {% if current_page_num < 5 %}
+                                    <button type='submit' name='off_set' value='{{ i }}'
+                                            class={% if i|add:1 == current_page_num %}"submit btn btn-primary"
+                                            disabled="disabled"
+                                            {% else %}"submit btn btn-info"
+                                            {% endif %}>{{ i|add:1 }}</button>
+                                    {% comment %} 最後までの1~3ページ目 {% endcomment %}
+                                {% elif all_page_num|add:-3 < current_page_num %}
+                                    <button type='submit' name='off_set' value='{{ all_page_num|add:-7|add:i }}'
+                                            class= {% if all_page_num|add:-7|add:i|add:1 == current_page_num %}"submit btn btn-primary"
+                                            disabled="disabled"
+                                            {% else %}"submit btn btn-info"
+                                            {% endif %}>{{ all_page_num|add:-7|add:i|add:1 }}</button>
+                                    {% comment %} 中間部分 {% endcomment %}
+                                {% else %}
+                                    <button type='submit' name='off_set' value='{{ i|add:current_page_num|add:-4 }}'
+                                            class=
+                                                    {% if i|add:current_page_num|add:-4|add:1 == current_page_num %}"submit btn btn-primary"
+                                            disabled="disabled"
+                                                    {% else %}"submit btn btn-info"
+                                                    {% endif %}
+                                    >{{ i|add:current_page_num|add:-4|add:1 }}</button>
+                                {% endif %}
+                            {% endif %}
+                        {% endfor %}
+                        ・
+                        <button type='submit' name='off_set' value='{{ current_page_num }}' class="submit btn btn-info"
+                                {% if all_page_num == current_page_num %} disabled="disabled"{% endif %}>＞
+                        </button>
+                        <button type='submit' name='off_set' value='{{ current_page_num|add:9 }}'
+                                class="submit btn btn-info"
+                                {% if all_page_num == current_page_num or all_page_num < current_page_num|add:10 %}
+                                disabled="disabled"{% endif %}>10＞
+                        </button>
+                        <button type='submit' name='off_set' value='{{ all_page_num|add:-1 }}'
+                                class="submit btn btn-info"{% if all_page_num == current_page_num %}
+                                disabled="disabled"{% endif %}>＞＞
+                        </button>
+                    </div>
+                {% endif %}
+                <!-- ページング機能ここまで -->
+                {% if perms.contract_index.csv_export %}
+                    <input type="submit" name="export_all" value="0" style='display:none;'
+                           id="export_all_btn">{% endif %}
+                {% if perms.contract_index.csv_import %}
+                    <input type="submit" name="export_all4update" value="0" style='display:none;'
+                           id="export_all4update_btn">{% endif %}
+            </div>
+            <!-- 除外ボタンで指定されたIDを保持 -->
+
+            <!-- POST保持機能ここまで -->
+            <!-- 一括更新 -->
+            {% if perms.contract_index.localcompany_number_add_delete %}
+            <div>
+                <input type="submit" value="更新" formaction="/confirmation/" formmethod="POST"
+                       class="btn btn-sm btn-outline-dark" id="update_bulk_submit" onClick="doUpdate();"/>
+                <span id="append_bulk"></span>
+            </div>
+            {% endif %}
+            <!-- //一括更新 -->
+        <div class="table-container sticky_table_wrapper">
+            <table class="text-center tablesorter table-hover sticky_table" id="sorter" >
+                <thead>
+                <tr>
+                    <th >NO</th>
+                    <th >PDF</th>
+                    <th>
+                        <div style="width:270px;">
+                        <button type="submit" name="sort_key" value="contract_title"
+                                class="btn btn-outline-dark btn-sm rounded-0">契約書名
+                        </button>
+                    </div>
+                    </th>
+                    <th>
+                        <div  style="width:270px;">
+                            <button type="submit" name="sort_key" value="contract_companies"
+                                class="btn btn-outline-dark btn-sm rounded-0">契約当事者
+                        </button>
+                        </div>
+                    </th>
+
+                    <th>
+                        <button type="submit" name="sort_key" value="signing_date"
+                                class="btn btn-outline-dark btn-sm rounded-0">締結日
+                        </button>
+                    </th>
+
+                    {% if perms.contract_index.contract_termination_flag %}
+                    <th>
+                        <button type="submit" name="sort_key" value="contract_termination_flag"
+                                class="btn btn-outline-dark btn-sm rounded-0">契約終了<br>フラグ
+                        </button>
+                    </th>
+                    {% endif %}
+
+                    {% if perms.contract_index.loan_guarantee_availability %}
+                    <th>
+                        <button type="submit" name="sort_key" value="loan_guarantee_availability"
+                                class="btn btn-outline-dark btn-sm rounded-0">光通信Grpの<br>債務保証有無
+                        </button>
+                    </th>
+                    {% endif %}
+                    <th>
+                        <button type="submit" name="sort_key" value="ringi_no"
+                                class="btn btn-outline-dark btn-sm rounded-0">稟議番号
+                        </button>
+                    </th>
+
+                    {% if perms.contract_index.document_number %}
+                        <th>
+                            <button type="submit" name="sort_key" value="document_number"
+                                    class="btn btn-outline-dark btn-sm rounded-0">書面番号
+                            </button>
+                        </th>
+                    {% endif %}
+
+                    {% if perms.contract_index.pdf_path %}
+                    <th>
+                        <button type="submit" name="sort_key" value="pdf_path"
+                                class="btn btn-outline-dark btn-sm rounded-0">保管場所URL
+                        </button>
+                    </th>
+                    {% endif %}
+
+                    {% if perms.contract_index.hidden_flag %}
+                    <th>
+                        <button type="submit" name="sort_key" value="hidden_flag"
+                                class="btn btn-outline-dark btn-sm rounded-0">非開示
+                        </button>
+                    </th>
+                    {% endif %}
+                    <th>
+                        <div  style="width:250px;">
+                            管轄社名
+                            <!-- 表示制御 -->
+                            {% if perms.contract_index.manage_ll %}
+                            <input type="button" value="[+]" id="fold_corporate" data-corporate_show="99" />
+                            {% endif %}
+                            <!-- //表示制御 -->
+                        </div>
+                    </th>
+                    {% if perms.contract_index.localcompany_number_add_delete %}
+                    <th data-column-type="corporate" style="display:none;">
+                        <label for="allcheck">一括チェック</label><input type="checkbox" id="allcheck_1" class="allcheck">
+                    </th>
+                    {% endif %}
+                    {% if perms.contract_index.localcompany_number_base %}
+                    <th data-column-type="corporate" style="display:none;">管轄社法人番号<br/>（元データ）</th>
+                    {% endif %}
+
+                    {% if perms.contract_index.localcompany_number_add_delete %}
+                    <th data-column-type="corporate" style="display:none;">管轄社法人番号<br/>（追加データ）
+                            <input type="text" value="" name="add_localcompany_number_value"
+                                id="add_localcompany_number_value">
+                            <button type="button" id="add_localcompany_number">追加リストに追加する</button>
+                    </th>
+                    <th data-column-type="corporate" style="display:none;">管轄社法人番号<br/>（除去データ）
+                        <input type="text" value="" name="delete_localcompany_number_value"
+                            id="delete_localcompany_number_value">
+                        <button type="button" id="delete_localcompany_number">除去リストに追加する</button>
+                    </th>
+                    {% endif %}
+                    <th data-column-type="corporate" {% if perms.contract_index.view_localcompany_number_for_index %} style="display:none;" {% endif %} >管轄社法人番号<br/>（統合データ）</th>
+
+                    {% if perms.contract_index.original_classification %}
+                    <th>
+                        <button type="submit" name="sort_key" value="original_classification"
+                                class="btn btn-outline-dark btn-sm rounded-0">原本区分
+                        </button>
+                    </th>
+                    {% endif %}
+                    {% if perms.contract_index.original_storage_location %}
+
+                    <th data-column-type="location">
+                        <button type="submit" name="sort_key" value="original_storage_location"
+                                class="btn btn-outline-dark btn-sm rounded-0">原本保管場所
+                        </button>
+                    </th>
+                    {% endif %}
+
+                    {% if perms.contract_index.change_record %}
+                        <th class='narrow disabled'></th>
+                    {% endif %}
+                    <th class='narrow disabled'></th>
+                </tr>
+                </thead>
+        </form>
+        <tbody>
+        {% for i in indexes %}
+            <tr{% if change_id == i.id %} class='changed_row'{% endif %}>
+
+
+                {% comment %} ID {% endcomment %}
+                <td class="rightalign" id='id_cell'>{{ i.id }}</td>
+
+                {% comment %} PDFリンク {% endcomment %}
+                <td nowrap class='pdf_download'>{% if i.pdf_path %}
+                    <a href="{{ i.pdf_path }}" class="submit btn btn-success btn-sm btn-block" target="_blank"
+                       id="pdf_link">リンク</a>{% else %}<span class="none">{{ i.pdf_path }}</span>{% endif %}</td>
+
+                {% comment %} 契約書名 {% endcomment %}
+                <td nowrap class="leftalign contract_title textwrap">{{ i.contract_title }}</td>
+
+                {% comment %} 契約当事者 {% endcomment %}
+                <td nowrap class="leftalign contract_company textwrap" id="contract_companies_{{ i.id }}">{{ i.contract_companies }}</td>
+
+
+                {% comment %} 締結日Disp {% endcomment %}
+                <td class='leftalign'>
+                    {% for j in i.signing_date_disp %}{% if j == '-' %}/{% else %}{{ j }}{% endif %}{% endfor %}</td>
+
+                {% comment %} 契約終了フラグ {% endcomment %}
+                {% if perms.contract_index.contract_termination_flag %}
+                <td class="leftalign  textwrap">{% if i.contract_termination_flag %}終了{% endif %}</td>
+                {% endif %}
+
+                {% comment %} 光通信Grpの債務保証有無 {% endcomment %}
+                {% if perms.contract_index.contract_termination_flag %}
+                <td class="leftalign  textwrap">
+                    {% if i.loan_guarantee_availability %}{{ i.loan_guarantee_availability }}{% else %}
+                        <span class="none">{{ i.loan_guarantee_availability }}</span>{% endif %}</td>
+                {% endif %}
+
+                {% comment %} 稟議URL {% endcomment %}
+                    <td class="leftalign  textwrap">{% if i.ringi_no %}{% for v in i.ringinolist %}{% if v %}
+                        <span data-ringi_no="{{ v }}" class="link redirect_ringi">{{ v }}</span><br/>{% endif %}{% endfor %}{% else %}
+                        <span class="none">{{ i.ringi_no }}</span>{% endif %}
+                    </td>
+
+                {% comment %} 書面番号 {% endcomment %}
+                {% if perms.contract_index.document_number %}
+                    <td class="leftalign  textwrap">{% if i.document_number %}{{ i.document_number }}{% else %}
+                        <span class="none">{{ i.document_number }}</span>{% endif %}</td>
+                {% endif %}
+
+                {% comment %} 保管場所URL：pdf_path URL {% endcomment %}
+                {% if perms.contract_index.pdf_path %}
+                    <td class="leftalign pdf_path textwrap">{% if i.pdf_path %}{{ i.pdf_path }}{% else %}
+                        <span class="none">{{ i.pdf_path }}</span>{% endif %}
+                    </td>
+                {% endif %}
+
+                {% comment %} 非開示 {% endcomment %}
+                {% if perms.contract_index.hidden_flag %}
+                    <td>{% if i.hidden_flag == 1 %}非開示{% else %}<span class="none">{{ i.hidden_flag }}</span>{% endif %}
+                    </td>
+                {% endif %}
+
+
+                {% comment %} 管轄社名 {% endcomment %}
+                {% with i_lc=i.index.all %}
+                    <td class='leftalign indexes_localCompanies textwrap' id="company_name_{{ i.id }}">
+                        {% for c in i_lc %}{% if c.add_flg == 0 or c.add_flg == 1 %}{{ c.local_company }},
+                        {% endif %}{% endfor %}
+                    </td>
+                {% endwith %}
+
+                {% if perms.contract_index.localcompany_number_add_delete %}
+                    <td class="id" id='id_cell' data-column-type="corporate" style="display:none;">
+                        <input type="checkbox" name="update_target" data-id="{{ i.id }}"/>
+                    </td>
+                {% endif %}
+
+                {% comment %} 管轄社法人番号（元データ） {% endcomment %}
+                {% if perms.contract_index.localcompany_number_base %}
+                {% with i_lc=i.index.all %}
+                    <td class='leftalign company_number textwrap' id="base_localcompany_number_{{ i.id }}" data-id="{{ i.id }}" data-column-type="corporate" style="display:none;">
+                        {% for c in i_lc %}{% if c.add_flg == 0 or c.add_flg == 2 %}{{ c.local_company.id }},
+                        {% endif %}{% endfor %}</td>
+                {% endwith %}
+                {% endif %}
+
+                {% with i_lc=i.index.all %}
+                    {% if perms.contract_index.localcompany_number_add_delete %}
+                    {% comment %} 追加管轄法人番号(追加) {% endcomment %}
+                    <td class='leftalign  textwrap' data-column-type="corporate" style="display:none;">
+                        <input type="text" name="add_target_{{ i.id }}" data-id="{{ i.id }}"
+                                id="add_localcompanies_input_{{ i.id }}"
+                                value="{% for c in i_lc %}{% if c.add_flg == 1 or c.add_flg == 3 %}{{ c.local_company.id }},{% endif %}{% endfor %}"
+                                disabled/>
+                    </td>
+
+                    {% comment %} 除外管轄法人番号(除去) {% endcomment %}
+                    <td class='leftalign  textwrap' data-column-type="corporate" style="display:none;">
+                        <input type="text" name="delete_target_{{ i.id }}" data-id="{{ i.id }}"
+                                id="delete_localcompanies_input_{{ i.id }}"
+                                value="{% for c in i_lc %}{% if c.add_flg == 2 or c.add_flg == 3 %}{{ c.local_company.id }},{% endif %}{% endfor %}"
+                                disabled/>
+                    </td>
+                    {% endif %}
+                    {% comment %} 管轄社法人番号(統合) {% endcomment %}
+                    <td class='leftalign company_number textwrap' data-column-type="corporate" {% if perms.contract_index.view_localcompany_number_for_index %} style="display:none;"{% endif %}>
+                        <span id="localcompanies_disp_{{ i.id }}">{% for c in i_lc %}{% if c.add_flg == 0 or c.add_flg == 1 %}{{ c.local_company.id }},{% endif %}{% endfor %}</span>
+                    </td>
+                {% endwith %}
+
+                {% comment %} 原本区分 {% endcomment %}
+                {% if perms.contract_index.original_classification %}
+                <td class="leftalign  textwrap">{{ i.original_classification }}
+                {% endif %}
+
+                {% comment %} 原本保管場所 {% endcomment %}
+                {% if perms.contract_index.original_storage_location %}
+                    <td class="leftalign  textwrap" data-column-type="location">
+                        {% if i.original_storage_location %}{% for k, v in original_storage_location_dict %}
+                            {% if i.original_storage_location == k %}{{ v }}{% endif %}{% endfor %}{% else %}
+                            <span class="none">None</span>{% endif %}</td>
+                {% endif %}
+
+                {% comment %} 編集ボタン {% endcomment %}
+                {% if perms.contract_index.change_record %}
+                    <td nowrap>
+                        <form method="post" action="{% url 'contract_index:changerecord' %}" id="edit_idv_{{ i.id }}">
+                            {% csrf_token %}
+                            {% if post_dict %}
+                                {% comment %} {% for k,v in post_dict.items %}
+              {% if 'csrfmiddlewaretoken' == k %}
+              {% else %}
+                {% for v0 in v %}
+                  {{ k }}:{{ v0 }}<br>
+                  <input type="hidden" name="{{ k }}" value="{{ v0 }}">
+                {% endfor %}
+              {% endif %}
+            {% endfor %} {% endcomment %}
+                                <input type="hidden" name="post_dict" value="{{ post_dict }}">
+                            {% endif %}
+                            <input type="hidden" name="sort_key" value="{{ sort_key }}">
+                            <input type="hidden" name="sort_order" value="{{ sort_order }}">
+                            <button type='submit' name="changerecord" value="{{ i.id }}"
+                                    class="submit btn btn-info btn-sm btn-block edit_individual">編集
+                            </button>
+                        </form>
+                    </td>{% endif %}
+
+                {% comment %} 除外ボタン {% endcomment %}
+                <td nowrap>
+                    <button type='submit' class="submit btn btn-warning btn-sm btn-block invisiblebtn">結果から除外</button>
+                </td>
+
+            </tr>
+        {% endfor %}
+        </tbody>
+        </table>
+    </div>
+        <!-- POST保持機能 -->
+        <div>
+            <form method="post" action="">{% csrf_token %}
+                {% if post_dict %}
+                    {% for k,v in post_dict.items %}
+                        {% if 'csrfmiddlewaretoken' == k or 'off_set' == k %}
+                        {% else %}
+                            {% for v0 in v %}
+                                {% comment %} {{ k }}:{{ v0 }}<br> {% endcomment %}
+                                <input type="hidden" name="{{ k }}" value="{{ v0 }}">
+                            {% endfor %}
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+                <!-- ページング機能(フッター) -->
+                {% if count > 100 %}
+                    <div class='paginator'>
+                        <input type="hidden" name="sort_key" value="{{ sort_key }}">
+                        <input type="hidden" name="sort_order" value="{{ sort_order }}">
+                        <button type='submit' name='off_set' value='0' class="submit btn btn-info"
+                                {% if 1 == current_page_num %} disabled="disabled"{% endif %}>＜＜
+                        </button>
+                        <button type='submit' name='off_set' value='{{ current_page_num|add:-11 }}'
+                                class="submit btn btn-info"{% if 1 == current_page_num or current_page_num < 11 %}
+                                disabled="disabled"{% endif %}>＜10
+                        </button>
+                        <button type='submit' name='off_set' value='{{ current_page_num|add:-2 }}'
+                                class="submit btn btn-info"{% if 1 == current_page_num %}
+                                disabled="disabled"{% endif %}>＜
+                        </button>
+                        ・
+                        {% for i in range_page_btns %}
+                            {% if i < all_page_num %}
+                                {% comment %} 最初から1~3ページ目 {% endcomment %}
+                                {% if current_page_num < 5 %}
+                                    <button type='submit' name='off_set' value='{{ i }}' class=
+                                            {% if i|add:1 == current_page_num %}"submit btn btn-primary"
+                                            disabled="disabled"
+                                            {% else %}"submit btn btn-info"
+                                            {% endif %}
+                                    >{{ i|add:1 }}</button>
+                                    {% comment %} 最後までの1~3ページ目 {% endcomment %}
+                                {% elif all_page_num|add:-3 < current_page_num %}
+                                    <button type='submit' name='off_set' value='{{ all_page_num|add:-7|add:i }}' class=
+                                            {% if all_page_num|add:-7|add:i|add:1 == current_page_num %}"submit btn btn-primary"
+                                            disabled="disabled"
+                                            {% else %}"submit btn btn-info"
+                                            {% endif %}
+                                    >{{ all_page_num|add:-7|add:i|add:1 }}</button>
+                                    {% comment %} 中間部分 {% endcomment %}
+                                {% else %}
+                                    <button type='submit' name='off_set' value='{{ i|add:current_page_num|add:-4 }}'
+                                            class=
+                                                    {% if i|add:current_page_num|add:-4|add:1 == current_page_num %}"submit btn btn-primary"
+                                            disabled="disabled"
+                                                    {% else %}"submit btn btn-info"
+                                                    {% endif %}
+                                    >{{ i|add:current_page_num|add:-4|add:1 }}</button>
+                                {% endif %}
+                            {% endif %}
+                        {% endfor %}
+                        ・
+                        <button type='submit' name='off_set' value='{{ current_page_num }}' class="submit btn btn-info"
+                                {% if all_page_num == current_page_num %} disabled="disabled"{% endif %}>＞
+                        </button>
+                        <button type='submit' name='off_set' value='{{ current_page_num|add:9 }}'
+                                class="submit btn btn-info"
+                                {% if all_page_num == current_page_num or all_page_num < current_page_num|add:10 %}
+                                disabled="disabled"{% endif %}>10＞
+                        </button>
+                        <button type='submit' name='off_set' value='{{ all_page_num|add:-1 }}'
+                                class="submit btn btn-info"{% if all_page_num == current_page_num %}
+                                disabled="disabled"{% endif %}>＞＞
+                        </button>
+                    </div>
+                {% endif %}
+                <!-- ページング機能(フッター)ここまで -->
+            </form>
+        </div>
+        <!-- POST保持機能ここまで -->
+    </div>
+    <!-- メインコンテンツここまで -->
+    <script>
+        {% comment %} // テーブルソート用
+        $(function() {
+          $('#sorter').tablesorter({
+            headers: {'.disabled': {sorter:false}}
+          });
+        }); {% endcomment %}
+
+        // 検索から除外ボタンの処理
+        $('.invisiblebtn').click(function (event) {
+            var id_num = $(this).parent().prev()
+            {% if perms.contract_index.add_record %}.prev(){% endif %}
+            {% if perms.contract_index.view_date_for_db %}.prev().prev(){% endif %}
+            {% if perms.contract_index.read_localcompany %}.prev(){% endif %}
+                .text();
+            $(this).parent().parent().remove();
+            var hidden_tag = '<input type="hidden" name="excluded_id" value="' + id_num + '">';
+            $('#post_hold').after(hidden_tag);
+        });
+
+        // 全件エクスポートの処理
+        function export_all() {
+            document.getElementById("export_all_btn").click();
+        };
+
+        // 更新用全件エクスポートの処理
+        function export_all4update() {
+            document.getElementById("export_all4update_btn").click();
+        };
+        {% comment %} // 再フォーカスでリロード
+        isNeedReload = true;
+        window.onfocus=function(){
+          if(isNeedReload){
+            window.location.reload();
+            isNeedReload = false;
+          }
+        } {% endcomment %}
+        {% comment %} 全件エクスポートの確認 {% endcomment %}
+
+        function export_all_confirm() {
+            if ({{ count }} >
+            150000
+        )
+            {
+                alert('件数が多すぎるためエクスポートを中止します。\n必須: 150,000件以下\n推奨:  50,000件以下')
+                return false;
+            }
+        else
+            if (!confirm('検索結果の全件エクスポートしますか？')) {
+                return false;
+            } else {
+                if ({{ count }} >
+                50000
+            )
+                {
+                    if (!confirm('件数が多いため不具合が発生する可能性があります。\n全件エクスポートしますか？')) {
+                        return false;
+                    }
+                }
+                export_all();
+            }
+        };
+
+        function export_all4update_confirm() {
+            if ({{ count }} >
+            150000
+        )
+            {
+                alert('件数が多すぎるためエクスポートを中止します。\n必須: 150,000件以下\n推奨:  50,000件以下')
+                return false;
+            }
+        else
+            if (!confirm('検索結果の全件エクスポートしますか？')) {
+                return false;
+            } else {
+                if ({{ count }} >
+                50000
+            )
+                {
+                    if (!confirm('件数が多いため不具合が発生する可能性があります。\n全件エクスポートしますか？')) {
+                        return false;
+                    }
+                }
+                export_all4update();
+            }
+        };
+    </script>
+
+    <script>
+
+        $(function () {
+
+            /*
+            * 管轄法人番号一括追加
+            */
+            $("#add_localcompany_number").on('click', function () {
+
+
+                if (!$("#add_localcompany_number_value").val().match(/^\d{1,13}$/)) {
+                    alert("追加法人番号が正しくありません");
+                    return '';
+                }
+                // フォームに設定された値
+                var set_localcompany_number_value = $("#add_localcompany_number_value").val() + ',';
+
+                $('[name="update_target"]:checked').each(function () {
+                    // id取得
+                    var id = $(this).data('id');
+                    // 現在の管轄法人番号を取得
+                    var add_localcompanies_input_current = $("#add_localcompanies_input_" + id).val();
+
+                    var base_localcompany_number = $('#base_localcompany_number_' + id).html();
+                    if (base_localcompany_number.indexOf(set_localcompany_number_value) == -1) {
+                        // 変更後の追加管轄法人番号を設定
+                        $("#add_localcompanies_input_" + id).val(add_localcompanies_input_current + set_localcompany_number_value);
+
+                        // 現在の管轄社法人番号に追加した法人番号を付与
+                        var localcompanies_disp = $("#localcompanies_disp_" + id).html();
+                        var add_localcompanies_disp = localcompanies_disp + set_localcompany_number_value;
+                        $("#localcompanies_disp_" + id).html(add_localcompanies_disp);
+                    }
+                });
+            });
+
+            /*
+            * 管轄法人番号一括削除
+            */
+            $("#delete_localcompany_number").on('click', function () {
+
+                if (!$("#delete_localcompany_number_value").val().match(/^\d{1,13}$/)) {
+                    alert("追加法人番号が正しくありません");
+                    return '';
+                }
+                // フォームに設定された値
+                var set_localcompany_number_value = $("#delete_localcompany_number_value").val() + ',';
+
+                $('[name="update_target"]:checked').each(function () {
+                    // id取得
+                    var id = $(this).data('id');
+                    // 現在の管轄法人番号を取得
+                    var delete_localcompanies_input_current = $("#delete_localcompanies_input_" + id).val();
+
+                    var base_localcompany_number = $('#base_localcompany_number_' + id).val();
+
+                    // 変更後の追加管轄法人番号を設定
+                    $("#delete_localcompanies_input_" + id).val(delete_localcompanies_input_current + set_localcompany_number_value);
+
+                    // 現在の管轄社法人番号の追加データから法人番号を除外
+                    // var localcompanies_add = $("#add_localcompanies_input_" + id).val();
+                    // var delete_localcompanies_add = localcompanies_add.replace(set_localcompany_number_value, "");
+                    // $("#add_localcompanies_input_" + id).val(delete_localcompanies_add);
+
+                    // 現在の管轄社法人番号の結果データから法人番号を除外
+                    var localcompanies_add = $("#localcompanies_disp_" + id).html();
+                    var delete_localcompanies_add = localcompanies_add.replace(set_localcompany_number_value, "");
+                    $("#localcompanies_disp_" + id).html(delete_localcompanies_add);
+                });
+            });
+
+
+            /*
+            * レコード更新チェックボックス、全てに設定
+            */
+            $(".allcheck").on('click', function (e) {
+
+                if (e.target.id === 'allcheck') {
+                    $('#allcheck_1').prop('checked', $(this).prop("checked"));
+                } else {
+                    $('#allcheck').prop('checked', $(this).prop("checked"));
+                }
+                if ($(this).prop("checked")) {
+                    $('[name="update_target"]').prop('checked', true);
+                    $("[id^=localcompanies_input_]").prop("disabled", false);
+                } else {
+                    $('[name="update_target"]').prop('checked', false);
+                    $("[id^=localcompanies_input_]").prop("disabled", true);
+                }
+            });
+
+            /*
+            * レコード更新チェック判定
+            */
+            $("[name^=update_target]").on('click', function () {
+                id = $(this).data('id');
+                if ($(this).is(':checked')) {
+
+                    $("#add_localcompanies_input_" + id).prop("disabled", false);
+                    $("#delete_localcompanies_input_" + id).prop("disabled", false);
+                    $("#add_localcompanies_input_" + id).attr('readonly', true);
+                    $("#delete_localcompanies_input_" + id).attr('readonly', true);
+                } else {
+
+                    $("#add_localcompanies_input_" + id).prop("disabled", true);
+                    $("#delete_localcompanies_input_" + id).prop("disabled", true);
+                }
+            });
+
+
+            /*
+            * 管轄社カラム表示切替
+            */
+            $("#fold_corporate").on('click', function () {
+
+                // 初期状態はdata属性を見ない
+                if ($(this).data('corporate_show') != 99){
+                    corporate_show = $(this).data('corporate_show');
+                }
+                if (corporate_show == 1) {
+                    $('[data-column-type="corporate"]').show();
+                    $("#update_bulk_submit").attr("disabled", false);
+                    $("#fold_corporate").val("[-]");
+                    $(this).data('corporate_show',0);
+                } else {
+                    $('[data-column-type="corporate"]').hide();
+                    $("#update_bulk_submit").attr("disabled", true);
+                    $("#fold_corporate").val("[+]");
+                    $(this).data('corporate_show',1);
+                    corporate_show = 0;
+                }
+                localStorage.setItem('corporate_show', Number(corporate_show));
+            });
+
+            if(localStorage.getItem('corporate_show') == 1){
+                var corporate_show = localStorage.getItem('corporate_show');
+                $('#fold_corporate').click();
+            }else{
+                var corporate_show = 0;
+                $('#fold_corporate').click();
+            }
+
+
+            /*
+            * 稟議URLredirect
+            */
+            $(".redirect_ringi").on('click', function () {
+                var ringi_no = $(this).data('ringi_no');
+                $.ajaxSetup({
+                    beforeSend: function(xhr, settings) {
+                    function getCookie(name) {
+                         var cookieValue = null;
+                         if (document.cookie && document.cookie != '') {
+                             var cookies = document.cookie.split(';');
+                             for (var i = 0; i < cookies.length; i++) {
+                                 var cookie = jQuery.trim(cookies[i]);
+                                 // Does this cookie string begin with the name we want?
+                                 if (cookie.substring(0, name.length + 1) == (name + '=')) {
+                                     cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                                     break;
+                                 }
+                             }
+                         }
+                         return cookieValue;
+                        }
+                        if (!(/^http:.*/.test(settings.url) || /^https:.*/.test(settings.url))) {
+                         // Only send the token to relative URLs i.e. locally.
+                         xhr.setRequestHeader("X-CSRFToken", getCookie('csrftoken'));
+                        }
+                    }
+                });
+                $.ajax({
+                    type: "POST",
+                    url: "/api/ringi_redirect/ringi_no/" + ringi_no,
+                    data: {
+                        'ringi_num': ringi_no,
+                    },
+                    success: function (data) {
+                        console.log("data:", data);
+                        var url = data['url'];
+                        if (url.includes('search'))
+                        {
+                            alert("該当の稟議番号はありません");
+                        }
+                        else {
+                            window.open(url, '_blank');
+                        }
+                    },
+                    error: function () {
+                        console.log('error');
+                        alert("該当の稟議番号はありません");
+                    }
+                });
+            });
+
+            $(".edit_individual").on('click', function () {
+                var record_id = this.value;
+                var checked = 0;
+                $('[name="update_target"]').each(function () {
+                    var id = $(this).data('id');
+                    if (id == record_id)
+                    {
+                        checked = 1
+                        var base_localcompany_number = $("#base_localcompany_number_" + id).html();
+                        var add_localcompany_number = $("#add_localcompanies_input_" + id).val();
+                        var delete_localcompany_number = $("#delete_localcompanies_input_" + id).val();
+                        var after_localcompany_number = $("#localcompanies_disp_" + id).html();
+                        var company_name = $("#company_name_" + id).html();
+
+                        $("#edit_idv_" + record_id.toString()).append('<input type="hidden" name="company_name" value="' + company_name +'" />');
+                        $("#edit_idv_" + record_id.toString()).append('<input type="hidden" name="add_localcompany_number" value="' + add_localcompany_number + '" /> ');
+                        $("#edit_idv_" + record_id.toString()).append('<input type="hidden" name="delete_localcompany_number" value="' + delete_localcompany_number + '" /> ');
+                        $("#edit_idv_" + record_id.toString()).append('<input type="hidden" name="after_localcompany_number" value="' + after_localcompany_number + '" /> ');
+                    }
+
+                });
+
+                if (checked == 0)
+                {
+                    $("#edit_idv_" + record_id.toString()).append('<input type="hidden" name="add_localcompany_number" value="" /> ');
+                    $("#edit_idv_" + record_id.toString()).append('<input type="hidden" name="delete_localcompany_number" value="" /> ');
+                    $("#edit_idv_" + record_id.toString()).append('<input type="hidden" name="after_localcompany_number" value="" /> ');
+                    $("#edit_idv_" + record_id.toString()).append('<input type="hidden" name="company_name" value="' + company_name +'" />');
+                }
+            });
+        });
+
+        /*
+        * 法人番号更新処理（チェックの入っているレコードのみ送信）
+      * formDataは何故かエラーが出るのでappendで対応
+        */
+        function doUpdate() {
+            $('[name="update_target"]:checked').each(function () {
+                var id = $(this).data('id');
+                var base_localcompany_number = $("#base_localcompany_number_" + id).html();
+                var add_localcompany_number = $("#add_localcompanies_input_" + id).val();
+                var delete_localcompany_number = $("#delete_localcompanies_input_" + id).val();
+                var after_localcompany_number = $("#localcompanies_disp_" + id).html();
+
+                var key_base_localcompany_number = "update[" + id + "][base_localcompany_number]";
+                var key_add_localcompany_number = "update[" + id + "][add_localcompany_number]";
+                var key_delete_localcompany_number = "update[" + id + "][delete_localcompany_number]";
+                var key_after_localcompany_number = "update[" + id + "][after_localcompany_number]";
+
+                // 当事者
+                var contract_companies = $("#contract_companies_" + id).html();
+
+                var key_contract_companies = "update[" + id + "][contract_companies]";
+
+                $('#append_bulk').append('<input type="hidden" name="' + key_base_localcompany_number + '" value="' + base_localcompany_number + '" />');
+                $('#append_bulk').append('<input type="hidden" name="' + key_add_localcompany_number + '" value="' + add_localcompany_number + '" />');
+                $('#append_bulk').append('<input type="hidden" name="' + key_delete_localcompany_number + '" value="' + delete_localcompany_number + '" />');
+                $('#append_bulk').append('<input type="hidden" name="' + key_after_localcompany_number + '" value="' + after_localcompany_number + '" />');
+                $('#append_bulk').append('<input type="hidden" name="' + key_contract_companies + '" value="' + contract_companies + '" />');
+                $('#append_bulk').append('<input type="hidden" name="target_id_list" value="' + id + '" />');
+                $('#append_bulk').append('<input type="hidden" name="test" value="123" />');
+            });
+            return true;
+        }
+
+    </script>
+    <script>
+        {% autoescape off %}
+            var companies_name_list = {{ company_names_json }};
+        {% endautoescape %}
+    </script>
+    <style>
+        input:read-only {
+            background-color: #FFF9FA;
+        }
+
+        input:disabled {
+            background: #CCC;
+        }
+        span.link {
+            color:#00f;
+            cursor:pointer;
+        }
+        span.link:hover{
+            color:#66f;
+        }
+
+    </style>
+    <script>
+        // 契約当事者表示置換
+        $(function(){
+            $('.contract_company').each(function(){
+                var txt = $(this).html();
+                $(this).html(
+                   txt.replace(/\/\//g,'/')
+                   .replace(/^\//g,'')
+                   .replace(/\/$/g,'')
+                 );
+            });
+        });
+    </script>
+
+
+    {% load static %}
+    <script type="text/javascript" src="{% static 'contract_index/js/table2csv2.js' %}"></script>
+
+{% endblock %}

@@ -1,0 +1,83 @@
+{% extends 'base.html' %} {% block title %}会社名テーブル{% endblock %} {% block content %}
+{% comment %} このページは廃止済みです。 {% endcomment %}
+<div class="dropdown">
+  <!-- 切替ボタンの設定 -->
+  <button type="button" class="btn btn-secondary dropdown-toggle dropmenu" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true"
+    aria-expanded="false">
+    ユーザー名:{{ user.get_username }}
+  </button>
+  <!-- ドロップメニューの設定 -->
+  <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+    {% comment %} <a class="dropdown-item" href="#">アカウント設定</a> {% endcomment %}
+    <a class="dropdown-item" href="{% url 'logout' %}">ログアウト</a>
+    <div class="dropdown-divider"></div>
+        <a class="dropdown-item" href="/admin/password_change/">パスワード変更</a>
+        {% if perms.contract_index.master %}
+        <div class="dropdown-divider"></div>
+        <a class="dropdown-item" href="{% url 'admin:index' %}">設定</a>
+        {% endif %}
+  </div>
+  <!-- /.dropdown-menu -->
+</div>
+<!-- /.dropdown -->
+
+<!-- ヘッダーメニュー -->
+<div class="taskbar">
+  表示レコード数: {{ companies|length }}
+  <form method="post" action="">{% csrf_token %}
+    {% if perms.contract_index.csv_export %}<input type="submit" name="export" value="ｴｸｽﾎﾟｰﾄ" class="submit btn btn-warning"></input>{% endif %}
+    {% if perms.contract_index.csv_import %}<input type="submit" name="import" value="ｲﾝﾎﾟｰﾄ" class="submit btn btn-warning"></input>{% endif %}
+    {% if perms.contract_index.add_record %}<input type="submit" name="addrecord" value="ﾚｺｰﾄﾞ追加" class="submit btn btn-warning"></input>{% endif %}
+    <input type="submit" name="search" value="検索ﾓｰﾄﾞ" class="submit btn btn-primary" disabled="disabled"></input>
+    <a href="{% url 'contract_index:index' %}" class="submit btn btn-primary">契約書ﾃｰﾌﾞﾙへ</a>
+    <input type="submit" name="localCompany" value="管轄社ﾃｰﾌﾞﾙへ" class="submit btn btn-primary" disabled="disabled"></input>
+    <input type="submit" name="kouOtsuSwap" value="甲乙入替複製" class="submit btn btn-primary" disabled="disabled"></input>
+    <input type="submit" name="searchStart" value="検索実行" class="submit btn btn-primary" disabled="disabled"></input>
+    <input type="submit" name="searchStart" value="更新ｲﾝﾎﾟｰﾄ用ｴｸｽﾎﾟｰﾄ" class="submit btn btn-primary" disabled="disabled"></input>
+    {% if perms.contract_index.manage_ll %}<a href="{% url 'contract_index:localcompany' %}" name="localcompany" value="管轄社管理" class="submit btn btn-primary">管轄社管理</a>{% endif %}
+      {% if perms.contract_index.manage_ll %}<a href="{% url 'contract_index:restrictlocalcompany' %}" name="restrictlocalcompany" value="管轄社制限管理" class="submit btn btn-primary" tabindex="1006">管轄社制限管理</a>{% endif %}
+  </form>
+</div>
+<!-- ヘッダーメニューここまで -->
+
+<table class="table-hover text-center tablesorter" id="sorter">
+  <thead>
+    <tr>
+      <th>会社名</th>
+      <th>カナ</th>
+      <th>別名ID</th>
+      <th>法人番号</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for i in companies %}
+    <tr>
+      <td nowrap>{{ i.company_name }}</td>
+
+      <td nowrap>{{ i.company_kana }}</td>
+
+      <td nowrap>{{ i.synonym_id }}</td>
+
+      <td nowrap>{{ i.corporation_number}}</td>
+
+      <td nowrap>
+        <input type="submit" name="edit_{{ i.id }}" value="編集" class="submit btn btn-warning btn-sm btn-block"></input>
+      </td>
+
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<script>
+    $(function() {
+      $('#sorter').tablesorter({
+        headers: {
+          4: {sorter:false}
+        }
+      });
+    });
+</script>
+
+{% endblock %}

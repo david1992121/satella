@@ -1,0 +1,210 @@
+{% extends 'base.html' %} {% block title %}メイン{% endblock %} {% block content %}
+    {% comment %} 全レコード表示用テンプレートです
+特殊操作後に一時的に表示させる時などに使用しています。
+(CSVインポート後、レコード追加後など)
+{% endcomment %}
+    <!-- ヘッダーメニュー -->
+    <div id='header'>
+        <div class="dropdown">
+            <!-- 切替ボタンの設定 -->
+            <button type="button" class="btn btn-secondary dropdown-toggle dropmenu" id="dropdownMenuButton"
+                    data-toggle="dropdown" aria-haspopup="true"
+                    aria-expanded="false">
+                ユーザー名:{{ user.get_username }}
+            </button>
+            <!-- ドロップメニューの設定 -->
+            <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                <a class="dropdown-item" href="{% url 'logout' %}">ログアウト</a>
+                <div class="dropdown-divider"></div>
+        <a class="dropdown-item" href="/admin/password_change/">パスワード変更</a>
+        {% if perms.contract_index.master %}
+        <div class="dropdown-divider"></div>
+        <a class="dropdown-item" href="{% url 'admin:index' %}">設定</a>
+        {% endif %}
+            </div>
+            <!-- /.dropdown-menu -->
+        </div>
+        <!-- /.dropdown -->
+
+        <div class="taskbar">
+            <form method="post" action="">{% csrf_token %}
+                {% if perms.contract_index.csv_export %}<a href="#" id="downloadCsvBtn" class="submit btn btn-primary"
+                                                           download="index.csv">ｴｸｽﾎﾟｰﾄ</a>{% endif %}
+                {% if perms.contract_index.csv_export %}
+                    <button class="btn btn-primary" disabled>ｴｸｽﾎﾟｰﾄall</button>{% endif %}
+                {% if perms.contract_index.csv_import %}
+                    <a href="{% url 'contract_index:import_csv' %}" name="import_csv" value="ｲﾝﾎﾟｰﾄ"
+                       class="submit btn btn-primary">ｲﾝﾎﾟｰﾄ</a>{% endif %}
+                {% if perms.contract_index.add_record %}
+                    <a href="{% url 'contract_index:addrecord' %}" name="addrecord" value="ﾚｺｰﾄﾞ追加"
+                       class="submit btn btn-primary">ﾚｺｰﾄﾞ追加</a>{% endif %}
+                <input type="submit" name="kouOtsuSwap" value="甲乙入替複製" class="submit btn btn-primary"
+                       disabled="disabled">
+                <a href="{% url 'contract_index:search' %}" name="search" value="検索再開" class="submit btn btn-primary"
+                   id='searchbtn'>検索再開</a>
+                <input type="submit" name="searchStart" value="更新ｲﾝﾎﾟｰﾄ用ｴｸｽﾎﾟｰﾄ" class="submit btn btn-primary"
+                       disabled="disabled">
+                {% if perms.contract_index.add_record %}
+                    <a href="{% url 'contract_index:localcompany' %}" name="localcompany" value="管轄社管理"
+                       class="submit btn btn-primary">管轄社管理</a>{% endif %}
+                {% if perms.contract_index.add_record %}
+                    <a href="{% url 'contract_index:restrictlocalcompany' %}" name="restrictlocalcompany"
+                       value="管轄社制限管理" class="submit btn btn-primary" tabindex="1006">管轄社制限管理</a>{% endif %}
+            </form>
+        </div>
+        <div class="alert-primary infobar">
+            表示レコード数: {{ indexes|length }} <span class='shortcut_key_info'>[Ctrl + F: 検索モード]</span>
+            {% if result %}<span class='result'>{{ result }}</span>{% endif %}
+        </div>
+    </div>
+    <!-- ヘッダーメニューここまで -->
+
+    <!-- メインコンテンツ -->
+    <div id='contents'>
+        <table class="text-center tablesorter table-hover" id="sorter">
+            <thead>
+            <tr>
+                <th>PDF</th>
+                <th width="200px;">契約書名</th>
+                <th>契約当事者</th>
+                <th>締結日</th>
+                <th>契約終了フラグ</th>
+                <th>原本区分</th>
+                {% if perms.contract_index.loan_guarantee_availability %}
+                    <th>光通信Grpの債務保証有無</th>
+                {% endif %}
+                <th>稟議番号</th>
+                {% if perms.contract_index.document_number %}
+                    <th>書面番号</th>
+                {% endif %}
+                {% if perms.contract_index.pdf_path %}
+                <th>保管場所URL</th>
+                {% endif %}
+                <th>No.</th>
+                {% if perms.contract_index.hidden_flag %}
+                    <th>非表示</th>{% endif %}
+                {% if perms.contract_index.localcompany_number_base %}
+                    <th>管轄社名</th>{% endif %}
+                {% if perms.contract_index.original_storage_location %}
+                    <th>原本保管場所</th>{% endif %}
+                {% if perms.contract_index.change_record %}
+                    <th class='nosort'></th>{% endif %}
+            </tr>
+            </thead>
+            <tbody>
+            {% for i in indexes %}
+                <tr>
+                    {% comment %} PDF {% endcomment %}
+                    <td nowrap class='pdf_download'>{% if i.pdf_path %}<a href="{{ i.pdf_path }}" class="submit btn btn-success btn-sm btn-block" target="_blank">リンク</a>{% else %}<span class="none">{{i.pdf_path}}</span>{% endif %}</td>
+ 
+                    {% comment %} 契約書名 {% endcomment %}
+                    <td class="leftalign contract_title textwrap">{{ i.contract_title }}</td>
+
+                    {% comment %} 契約当事者 {% endcomment %}
+                    <td class="leftalign  textwrap">{{ i.contract_companies }}</td>
+
+                    {% comment %} 締結日 {% endcomment %}
+                    <td>{{ i.signing_date|date:"Y/m/d" }}</td>
+
+                    {% comment %} 契約終了フラグ {% endcomment %}
+                    <td class="leftalign  textwrap">{% if i.contract_termination_flag %}終了{% endif %}</td>
+
+                    {% comment %} 原本区分 {% endcomment %}
+                    <td class="leftalign  textwrap">{{ i.original_classification }}</td>
+
+                    {% comment %} 光通信Grpの債務保証有無 {% endcomment %}
+                    {% if perms.contract_index.loan_guarantee_availability %}
+                        <td class="leftalign  textwrap">
+                            {% if i.loan_guarantee_availability %}{{ i.loan_guarantee_availability }}{% else %}
+                                <span class="none">{{ i.loan_guarantee_availability }}</span>{% endif %}
+                        </td>
+                    {% endif %}
+
+                    {% comment %} 稟議番号 {% endcomment %}
+                    <td class="leftalign  textwrap">
+                        {% if i.ringi_no %}{{ i.ringi_no }}{% else %}
+                            <span class="none">{{ i.ringi_no }}</span>{% endif %}
+                    </td>
+
+                    {% comment %} 書面番号 {% endcomment %}
+                    {% if perms.contract_index.document_number %}
+                        <td class="leftalign  textwrap">
+                            {% if i.document_number %}{{ i.document_number }}{% else %}
+                                <span class="none">{{ i.document_number }}</span>{% endif %}
+                        </td>
+                    {% endif %}
+                    {% comment %} 保管場所URL {% endcomment %}
+                    {% if perms.contract_index.pdf_path %}
+                        <td class="leftalign pdf_path textwrap">保管場所
+                            {% if i.pdf_path %}
+                                {{ i.pdf_path }}{% else %}<span class="none">{{ i.pdf_path }}</span>{% endif %}
+                        </td>
+                    {% endif %}
+
+                    {% comment %} ID（No.） {% endcomment %}
+                    <td class="rightalign id">{{ i.id }}</td>
+
+
+                    {% comment %} 非開示フラグ {% endcomment %}
+                    {% if perms.contract_index.hidden_flag %}
+                        <td>
+                            {% if i.hidden_flag == 1 %}○{% else %}
+                                <span class="none">{{ i.hidden_flag }}</span>{% endif %}
+                        </td>
+                    {% endif %}
+
+                    {% comment %} 管轄社名 {% endcomment %}
+                        <td class='leftalign indexes_localCompanies textwrap'>
+                        {% with i_lc=i.index.all %}
+                                {% for c in i_lc %}{% if c.add_flg == 0 or c.add_flg == 1 %}{{ c.local_company }},
+                                {% endif %}{% endfor %}
+                        {% endwith %}
+                        </td>
+                    {% comment %} 原本保管場所 {% endcomment %}
+                    {% if perms.contract_index.original_storage_location %}
+                        <td class="leftalign  textwrap">
+                            {% if i.original_storage_location %}{% for k, v in original_storage_location_dict %}
+                                {% if i.original_storage_location == k %}{{ v }}{% endif %}{% endfor %}{% else %}
+                                <span class="none">None</span>{% endif %}</td>
+                    {% endif %}
+
+                    {% comment %} 編集ボタン {% endcomment %}
+                    {% if perms.contract_index.change_record %}
+                        <td>
+                            <form method="post" action="{% url 'contract_index:changerecord' %}"
+                                  target="_blank">{% csrf_token %}
+                                  <input type="hidden" name="add_localcompany_number" value="" />
+                                  <input type="hidden" name="after_localcompany_number" value="" />
+                                  <input type="hidden" name="base_localcompany_number" value="" />
+                                  <input type="hidden" name="delete_localcompany_number" value="" />
+                                <button type='submit' name="changerecord" value="{{ i.id }}"
+                                        class="submit btn btn-info btn-sm btn-block">編集
+                                </button>
+                            </form>
+                        </td>
+                    {% endif %}
+
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <!-- メインコンテンツここまで -->
+
+    <script>
+        // テーブルソート用
+        $(function () {
+            $('#sorter').tablesorter({
+                headers: {'.nosort': {sorter: false}}
+            });
+        });
+
+        // ショートカットキー用
+        $(function () {
+            shortcut.add("Ctrl+f", function () {
+                $("#searchbtn")[0].click();
+            });
+        });
+    </script>
+
+{% endblock %}

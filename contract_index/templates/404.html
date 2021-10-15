@@ -1,0 +1,11 @@
+<h1>ページが見つかりません。</h1>
+<h2>3秒後に<a href="{% url 'contract_index:search' %}">スタートページ</a>へ遷移します。</h2>
+<h3>404 Not Found.</h3>
+
+<script>
+function autoLink()
+{
+location.href="{% url 'contract_index:top' %}";
+}
+setTimeout("autoLink()",3000);
+</script>

@@ -1,0 +1,93 @@
+{% extends 'base.html' %} {% block title %}インポート{% endblock %} {% block content %}
+{% comment %} CSVインポート用テンプレートです {% endcomment %}
+<!-- ヘッダーメニュー -->
+<div id='header'>
+  <div class="dropdown">
+    <!-- 切替ボタンの設定 -->
+    <button type="button" class="btn btn-secondary dropdown-toggle dropmenu" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true"
+      aria-expanded="false">
+      ユーザー名:{{ user.get_username }}
+    </button>
+    <!-- ドロップメニューの設定 -->
+    <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+      <a class="dropdown-item" href="{% url 'logout' %}">ログアウト</a>
+      <div class="dropdown-divider"></div>
+        <a class="dropdown-item" href="/admin/password_change/">パスワード変更</a>
+        {% if perms.contract_index.master %}
+        <div class="dropdown-divider"></div>
+        <a class="dropdown-item" href="{% url 'admin:index' %}">設定</a>
+        {% endif %}
+    </div>
+    <!-- /.dropdown-menu -->
+  </div>
+  <!-- /.dropdown -->
+
+  <div class="taskbar">
+    <form method="post" action="">{% csrf_token %}
+      {% if perms.contract_index.csv_export %}<button class="btn btn-primary" disabled>ｴｸｽﾎﾟｰﾄ</button>{% endif %}
+      {% if perms.contract_index.csv_export %}<button class="btn btn-primary" disabled>ｴｸｽﾎﾟｰﾄall</button>{% endif %}
+      {% if perms.contract_index.csv_import %}<a href="{% url 'contract_index:search' %}" class="submit btn btn-primary">ｷｬﾝｾﾙ</a>{% endif %}
+      {% if perms.contract_index.add_record %}<input type="submit" name="search" value="ﾚｺｰﾄﾞ追加" class="submit btn btn-primary" disabled="disabled">{% endif %}
+      <input type="submit" name="kouOtsuSwap" value="OR検索 行追加" class="submit btn btn-primary" disabled="disabled">
+      <input type="submit" name="searchStart" value="検索実行" class="submit btn btn-primary" disabled="disabled">
+      <input type="submit" name="searchStart" value="更新ｲﾝﾎﾟｰﾄ用ｴｸｽﾎﾟｰﾄ" class="submit btn btn-primary" disabled="disabled">
+      {% if perms.contract_index.write_localcompany %}<a href="{% url 'contract_index:localcompany' %}" name="localcompany" value="管轄社管理" class="submit btn btn-primary">管轄社管理</a>{% endif %}
+      {% if perms.contract_index.change_indexlocalcompany %}<a href="{% url 'contract_index:restrictlocalcompany' %}" name="restrictlocalcompany" value="管轄社制限管理" class="submit btn btn-primary" tabindex="1006">管轄社制限管理</a>{% endif %}
+    </form>
+  </div>
+  <div class="alert-primary infobar">
+    原則として以下を守ってください。
+  </div>
+</div>
+<!-- ヘッダーメニューここまで -->
+
+<!-- メインコンテンツ -->
+<div id='contents'>
+  <div class="container">
+    <form method="post" action="{% url 'contract_index:upload' %}" enctype="multipart/form-data">{% csrf_token %}
+      <h3>新規インポート</h3>
+      <p>新たにレコードを挿入します。<br><br>
+      CSVの1列目は見出しとして<b>契約書名,契約当事者,締結日,原本区分,契約終了フラグ,光通信Grpの債務保証有無,稟議番号,書面番号,管轄社名,管轄社法人番号,原本保管場所</b>としてください。<br>
+      日付は"/"スラッシュで区切ってください。複数の管轄社は","カンマで区切ってください。文字コードはShift-JIS(Excel標準)で問題ありません。<br>
+      {% load staticfiles %}<a href="{% static 'contract_index/index_import_format_v3.csv' %}" download="index_import_format_v3.csv">[テンプレートをダウンロード]</a></p>
+      <input id="import_new" type="file" style="display:none" name='uploaded_csv' accept="text/csv">
+      <div class="input-group">
+        <input type="text" id="photoCover" class="form-control" placeholder="select file..." style="max-width: 300px;">
+        <span class="input-group-btn"><button type="button" class="btn btn-success" onclick="$('input[id=import_new]').click();">参照</button></span>
+        <button type='submit' class="btn btn-info" style="margin: 0 10px;">アップロード</button>
+      </div>
+    </form>
+    <form method="post" action="{% url 'contract_index:upload2' %}" enctype="multipart/form-data">{% csrf_token %}
+      <br>
+      <h3>更新インポート</h3>
+      {% comment %} <p>開発中です。</p> {% endcomment %}
+      
+      <p>No.で一致した既存のレコードを更新します。<br><br>
+      変更したくないカラムにも入力されていることが必要です。（<b>空欄は空に</b>なります。）<br>
+      日付は"/"スラッシュで区切ってください。複数の管轄社は","カンマでくぎってください。文字コードはShift-JIS(Excel標準)で問題ありません。<br>
+      管轄社一覧に存在しない会社名（<b>大文字小文字全角半角</b>区別されます。）が入力されているとその管轄社は処理から無視されます。<br>
+      <p>手順</p>
+      <ol>
+      <li>更新したいレコードが表示されるように検索。</li>
+      <li>更新インポート用エクスポートallを実行してCSVファイルを取得。</li>
+      <li>変更したい箇所を変更する。</li>
+      <li>このページからアップロードする。</li>
+      </ol>
+      <input id="import_update" type="file" style="display:none" name='uploaded_csv' accept="text/csv">
+      <div class="input-group">
+        <input type="text" id="photoCover2" class="form-control" placeholder="select file..." style="max-width: 300px;">
+        <span class="input-group-btn"><button type="button" class="btn btn-success" onclick="$('input[id=import_update]').click();">参照</button></span>
+        <button type='submit' class="btn btn-info" style="margin: 0 10px;">アップロード</button>
+    </form>
+  </div>
+</div>
+<script>
+  $('input[id=import_new]').change(function() {
+    $('#photoCover').val($(this).val().replace("C:\\fakepath\\", ""));
+  });
+  $('input[id=import_update]').change(function() {
+    $('#photoCover2').val($(this).val().replace("C:\\fakepath\\", ""));
+  });
+</script>
+<!-- メインコンテンツここまで -->
+{% endblock %}
