@@ -58,19 +58,7 @@ def add_extra_query(pack_item):
 def make_cc_query(keyword_pack):
     
     if len(keyword_pack) > 0:
-        all_query = Q(pk__isnull=True)
-        for pack_item in keyword_pack:
-            item_query = Q()
-            for keyword_item in pack_item:
-                if keyword_item["is_exact"]:
-                    item_query &= Q(contract_companies__icontains = "/{}/".format(keyword_item["keyword"]))
-                else:
-                    item_query &= Q(contract_companies__icontains = keyword_item["keyword"])
-        
-            # print(pack_item)
-            item_query &= add_extra_query(pack_item)
-            all_query |= item_query
-        return all_query
+        return add_extra_query(keyword_pack)
     else:
         return Q()
         

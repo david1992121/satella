@@ -704,7 +704,7 @@ def searchresult(request):
     is_kouotsu_mutual_search = False
 
     order = dict()
-    q_query = Q()
+    q_query = Q(pk__isnull=True)
     order_disp = dict()
     order_exclude = dict()
     order_exclude_disp = dict()
@@ -733,63 +733,48 @@ def searchresult(request):
         # print(conditions)
         if conditions is not None:
 
-            sub_queries = [None] * 23
-            temp_queries = [None] * 23
-            dup_idx, dup_cc = [], []
-
-            cc_keyword_pack = []
+            sub_queries = Q()
             temp_cc_pack = []
+
             for key, condition in conditions.items():
+
+                if condition["where_type"] == "or":
+                    sub_queries &= make_cc_query(temp_cc_pack)
+                    q_query |= sub_queries
+                    sub_queries = Q()
+                    temp_cc_pack = []
+
                 search_condition = '('
                 if index == 0:
                     search_condition += 'or)'
                 else:
                     search_condition += condition['where_type'] + ')'
+
+                
                 if 'contract_title' in condition and condition['contract_title']:
-                    if index == 0:
-                        sub_queries[0] = Q()
-                        temp_queries[0] = Q()
+                    
                     if 'contract_title_checkbox' in condition:
-                        temp_queries[0] &= Q(
-                            contract_title__iexact=condition['contract_title'])
+                        sub_queries &= Q(
+                            contract_title__iexact = condition['contract_title'])
+
                         add_condition(order_disp, '契約書名(完全一致)',
                                       condition['contract_title'])
 
                     else:
-                        word = condition['contract_title'].split()
-                        for w in word:
-                            temp_queries[0] &= Q(contract_title__icontains=w)
+                        sub_queries &= Q(contract_title__icontains = condition['contract_title'])
 
-                        add_condition(order_disp, '契約書名', ','.join(word))
+                        add_condition(order_disp, '契約書名', condition['contract_title'])
 
-                    sub_queries[0] |= temp_queries[0]
-                    temp_queries[0] = Q()
-
-                # 契約書名の除外検索
                 if 'contract_title_exclude' in condition and condition['contract_title_exclude']:
-                    if sub_queries[1] is None:
-                        sub_queries[1] = Q()
-                    if temp_queries[1] is None:
-                        temp_queries[1] = Q()
-                    temp_queries[1] = ~Q(
+
+                    sub_queries = ~Q(
                         contract_title__icontains=condition['contract_title_exclude'])
 
                     add_condition(order_exclude_disp, '契約書名',
                                   condition['contract_title_exclude'])
 
-                    sub_queries[1] |= temp_queries[1]
-                    temp_queries[1] = Q()
-
                 # 契約当事者の検索
                 if 'contract_companies' in condition and condition['contract_companies']:
-                    if sub_queries[2] is None:
-                        sub_queries[2] = Q()
-                    if temp_queries[2] is None:
-                        temp_queries[2] = Q()
-
-                    if condition["where_type"] == "or":
-                        cc_keyword_pack.append(temp_cc_pack) 
-                        temp_cc_pack = []
                     
                     if 'contract_companies_checkbox' in condition:
                         temp_cc_pack.append({
@@ -798,41 +783,27 @@ def searchresult(request):
                         })
                         add_condition(order_disp, '契約当事者(完全一致)',
                                       condition['contract_companies'])
+                        sub_queries &= Q(
+                            contract_title__iexact = condition['contract_companies'])
                     else:
                         temp_cc_pack.append({
                             "keyword": condition['contract_companies'],
                             "is_exact": False
                         })
 
+                        sub_queries &= Q(
+                            contract_title__icontains = condition['contract_companies'])
+
                         add_condition(order_disp, '契約当事者(部分一致)',
                                       condition['contract_companies'])
 
-                if index + 1 == len(conditions):
-                    if len(temp_cc_pack) > 0:
-                        cc_keyword_pack.append(temp_cc_pack)
 
                 # 契約書名の除外検索
                 if 'contract_companies_exclude' in condition and condition['contract_companies_exclude']:
-                    if sub_queries[3] is None:
-                        sub_queries[3] = Q()
-                    if temp_queries[3] is None:
-                        temp_queries[3] = Q()
-                    if condition['where_type'] == 'or':
-                        sub_queries[3] |= temp_queries[3]
-                        temp_queries[3] = Q()
-                    word = condition['contract_companies_exclude'].split()
-                    for w in word:
-                        temp_sub_queries = (Q(contract_companies__iexact=w) | Q(
-                            contract_companies__icontains=("/" + w)) | Q(
-                            contract_companies__icontains=(w + "/")))
-                        temp_queries[3] &= ~temp_sub_queries
-                    # temp_queries[3] &= ~Q(contract_companies__icontains=condition['contract_companies_exclude'])
+                    sub_queries = ~Q(contract_companies__icontains=condition['contract_companies_exclude'])
 
-                    add_condition(order_exclude_disp, '契約書名', condition['contract_companies_exclude']
+                    add_condition(order_exclude_disp, '契約当事者', condition['contract_companies_exclude']
                                   + search_condition)
-
-                if index + 1 == len(conditions) and sub_queries[3] is not None and temp_queries[3] is not None:
-                    sub_queries[3] |= temp_queries[3]
 
                 # 締結日の検索
                 if 'signing_date_from' in condition and 'signing_date_to' in condition and (date_check(condition['signing_date_from']) or
@@ -859,56 +830,40 @@ def searchresult(request):
                     # new_end = end + timedelta(days=1)
                     new_end = end
 
-                    if sub_queries[4] is None:
-                        sub_queries[4] = Q()
+                    sub_queries &= Q(signing_date__range=[start, new_end])
 
-                    sub_queries[4] |= Q(signing_date__range=[start, new_end])
                     add_condition(order_disp, '締結日', start_disp + end_disp)
 
                 if 'ringi_no' in condition and condition['ringi_no']:
-                    if sub_queries[5] is None:
-                        sub_queries[5] = Q()
-
-                    temp_queries[5] = Q(ringi_no=condition['ringi_no']) | \
-                        Q(ringi_no__icontains=',' + condition['ringi_no'] + ',') | \
-                        Q(ringi_no__startswith=condition['ringi_no'] + ',') | \
-                        Q(ringi_no__endswith=',' + condition['ringi_no'])
+                    sub_queries &= Q(ringi_no__icontains = condition['ringi_no'])
 
                     add_condition(order_disp, '稟議番号', condition['ringi_no'])
-
-                    sub_queries[5] |= temp_queries[5]
 
                 # 書面番号の検索
                 if request.user.has_perm('contract_index.view_document_number'):
                     if 'document_number' in condition and condition['document_number']:
 
-                        if sub_queries[6] is None:
-                            sub_queries[6] = Q()
-
-                        sub_queries[6] |= Q(
+                        sub_queries &= Q(
                             document_number__iexact=condition['document_number'])
+
                         add_condition(order_disp, '書面番号',
                                       condition['document_number'])
 
                 # 原本区分の検索
                 if 'original_classification' in condition and condition['original_classification']:
 
-                    if sub_queries[7] is None:
-                        sub_queries[7] = Q()
-                    # 検索条件をセット
-                    sub_queries[7] |= Q(
+                    sub_queries &= Q(
                         original_classification__icontains=condition['original_classification'])
+                
                     # 条件表示の文字列作成
                     add_condition(order_disp, '原本区分',
                                   condition['original_classification'])
 
                 if 'original_classification_exclude' in condition and condition['original_classification_exclude']:
 
-                    if sub_queries[8] is None:
-                        sub_queries[8] = Q()
-                    # 検索条件をセット
-                    sub_queries[8] |= ~Q(
+                    sub_queries &= ~Q(
                         original_classification__icontains=condition['original_classification_exclude'])
+
                     # 条件表示の文字列作成
                     add_condition(order_exclude_disp, '原本区分',
                                   condition['original_classification_exclude'])
@@ -917,66 +872,31 @@ def searchresult(request):
                 if 'contract_termination_flag' in condition:
                     if condition['contract_termination_flag'] == 'true':
 
-                        if sub_queries[9] is None:
-                            sub_queries[9] = Q()
-                        sub_queries[9] |= Q(
-                            contract_termination_flag=1)
+                        sub_queries &= Q(contract_termination_flag=1)
                         add_condition(order_disp, '終了フラグ', '終了')
 
                 # 光通信Grpの債務保証有無の検索
                 if request.user.has_perm('contract_index.view_loan_guarantee_availability'):
                     if 'loan_guarantee_availability' in condition and condition['loan_guarantee_availability']:
 
-                        if sub_queries[10] is None:
-                            sub_queries[10] = Q()
-                        if temp_queries[10] is None:
-                            temp_queries[10] = Q()
-
-                        if condition['where_type'] == 'or':
-                            sub_queries[10] |= temp_queries[10]
-                            temp_queries[10] = Q()
-
                         if 'loan_guarantee_availability_checkbox' in condition and condition['loan_guarantee_availability_checkbox'] == 'true':
-                            temp_queries[10] &= Q(
-                                loan_guarantee_availability__iexact=condition['loan_guarantee_availability'])
+                            sub_queries &= Q(loan_guarantee_availability__iexact = condition['loan_guarantee_availability'])
                             add_condition(order_disp, '光通信Grpの債務保証有無(完全一致)',
                                           condition['loan_guarantee_availability'] + search_condition)
                         else:
-                            if condition['loan_guarantee_availability']:
-                                word = condition['loan_guarantee_availability'].split(
-                                )
-                                for w in word:
-                                    temp_queries[10] &= Q(
-                                        loan_guarantee_availability__icontains=w)
-                                add_condition(order_disp, '光通信Grpの債務保証有無', ','.join(
-                                    word) + search_condition)
+                            sub_queries &= Q(loan_guarantee_availability__icontains = condition['loan_guarantee_availability'])
+                            add_condition(order_disp, '光通信Grpの債務保証有無', condition['loan_guarantee_availability'] + search_condition)
 
-                    if index + 1 == len(conditions) and sub_queries[10] is not None and temp_queries[10] is not None:
-                        sub_queries[10] |= temp_queries[10]
+
                     # 除外検索
                     if 'loan_guarantee_availability_exclude' in condition:
                         if condition['loan_guarantee_availability_exclude']:
 
-                            if sub_queries[11] is None:
-                                sub_queries[11] = Q()
-                            if temp_queries[11] is None:
-                                temp_queries[11] = Q()
-
-                            if condition['where_type'] == 'or':
-                                sub_queries[11] |= temp_queries[11]
-                                temp_queries[11] = Q()
-
-                            word = condition['loan_guarantee_availability_exclude'].split(
-                            )
-                            for w in word:
-                                temp_queries[11] &= ~Q(
-                                    loan_guarantee_availability__icontains=w)
+                            sub_queries &= ~Q(loan_guarantee_availability__icontains = condition['loan_guarantee_availability_exclude'])
 
                             add_condition(order_exclude_disp, '光通信Grpの債務保証有無',
                                           condition['loan_guarantee_availability_exclude'] + search_condition)
 
-                    if index + 1 == len(conditions) and sub_queries[11] is not None and temp_queries[11] is not None:
-                        sub_queries[11] |= temp_queries[11]
                     # 空で検索
                     try:
                         if 'loan_guarantee_availability_check_blank' in condition and condition['loan_guarantee_availability_check_blank']:
@@ -989,27 +909,17 @@ def searchresult(request):
                 if 'pdf_path' in condition:
                     if condition['pdf_path']:
 
-                        if sub_queries[12] is None:
-                            sub_queries[12] = Q()
-
                         if 'pdf_path_checkbox' in condition and condition['pdf_path_checkbox'] == 'true':
-                            sub_queries[12] |= Q(
-                                pdf_path__iexact=condition['pdf_path'])
-                            add_condition(order_disp, 'URL(完全一致)',
-                                          condition['pdf_path'])
+                            sub_queries &= Q(pdf_path__iexact = condition['pdf_path'])
+                            add_condition(order_disp, 'URL(完全一致)', condition['pdf_path'])
                         else:
-                            sub_queries[12] |= Q(
-                                pdf_path__icontains=condition['pdf_path'])
-                            add_condition(order_disp, 'URL',
-                                          condition['pdf_path'])
+                            sub_queries &= Q(pdf_path__icontains = condition['pdf_path'])
+                            add_condition(order_disp, 'URL', condition['pdf_path'])
 
                 # 非開示の検索
                 if 'hidden_flag' in condition:
                     if condition['hidden_flag'] == 'true':
-                        if sub_queries[13] is None:
-                            sub_queries[13] = Q()
-
-                        sub_queries[13] |= Q(hidden_flag=1)
+                        sub_queries &= Q(hidden_flag=1)
                         order_disp['非開示'] = '非開示'
 
                 # 原本保管場所の検索
@@ -1019,135 +929,51 @@ def searchresult(request):
                         if condition['original_storage_location'] == 'None':
                             pass
                         else:
-
-                            if sub_queries[14] is None:
-                                sub_queries[14] = Q()
-                            if temp_queries[14] is None:
-                                temp_queries[14] = Q()
-                            temp_queries[14] &= Q(
-                                original_storage_location__iexact=condition['original_storage_location'])
+                            sub_queries &= Q(original_storage_location__iexact = condition['original_storage_location'])
                             add_condition(order_disp, '原本保管場所',
                                           condition['original_storage_location'])
-
-                            if condition['where_type'] == 'or':
-                                sub_queries[14] |= temp_queries[14]
-                                temp_queries[14] = Q()
-
-                            if index + 1 == len(conditions):
-                                sub_queries[14] &= temp_queries[14]
 
                     if 'original_storage_location_exclude' in condition:
                         if condition['original_storage_location_exclude'] == 'None':
                             pass
                         else:
-
-                            if sub_queries[15] is None:
-                                sub_queries[15] = Q()
-                            if temp_queries[15] is None:
-                                temp_queries[15] = Q()
-                            temp_queries[15] |= ~Q(
-                                original_storage_location=condition['original_storage_location_exclude'])
+                            sub_queries &= ~Q(original_storage_location = condition['original_storage_location_exclude'])
                             add_condition(
                                 order_exclude_disp, '原本保管場所', condition['original_storage_location_exclude'])
 
-                            if condition['where_type'] == 'or':
-                                sub_queries[15] |= temp_queries[15]
-                                temp_queries[15] = Q()
-
-                            if index + 1 == len(conditions):
-                                sub_queries[15] &= temp_queries[15]
-
                 # 管轄社法人番号（元データ）の検索
                 if 'local_company_number_original' in condition and condition['local_company_number_original']:
-                    word = condition['local_company_number_original'].split(',')
-                    word = list(filter(None, set(word)))
-                    for w in word:
-                        dup_idx.append([w, 0, condition['where_type']])
+                    sub_queries &= Q(index__local_company_id = condition['local_company_number_original']) 
+                    sub_queries &= (Q(index__add_flg = 0) | Q(index__add_flg = 2))
+
+                    add_condition(order_disp, '管轄社法人番号（元）', condition['local_company_number_original'] + search_condition)
+                    
 
                 # 管轄社法人番号（統合フィールド）の検索
                 if 'local_company_number_total' in condition and condition['local_company_number_total']:
-                    word = condition['local_company_number_total'].split(',')
-                    word = list(filter(None, set(word)))
-                    for w in word:
-                        dup_idx.append([w, 1, condition['where_type']])
+                    sub_queries &= Q(index__local_company_id = condition['local_company_number_total']) 
+                    sub_queries &= (Q(index__add_flg = 0) | Q(index__add_flg = 1))
+
+                    add_condition(order_disp, '管轄社法人番号（統合）', condition['local_company_number_total'] + search_condition)
 
                 # 管轄社法人番号（追加フィールド）の検索
                 if 'local_company_number_add' in condition and condition['local_company_number_add']:
-                    word = condition['local_company_number_add'].split(',')
-                    word = list(filter(None, set(word)))
-                    for w in word:
-                        dup_idx.append([w, 2, condition['where_type']])
+                    sub_queries &= Q(index__local_company_id = condition['local_company_number_add']) 
+                    sub_queries &= (Q(index__add_flg = 1) | Q(index__add_flg = 3))
+
+                    add_condition(order_disp, '管轄社法人番号（追加）', condition['local_company_number_add'] + search_condition)
 
                 # 管轄社法人番号（除去フィールド）の検索
                 if 'local_company_number_delete' in condition and condition['local_company_number_delete']:
-                    word = condition['local_company_number_delete'].split(',')
-                    word = list(filter(None, set(word)))
-                    for w in word:
-                        dup_idx.append([w, 3, condition['where_type']])
+                    sub_queries &= Q(index__local_company_id = condition['local_company_number_delete']) 
+                    sub_queries &= (Q(index__add_flg = 2) | Q(index__add_flg = 3))
 
-                # 管轄社法人番号（元データ）の検索
-                if 'local_company_number_original' in condition and condition['local_company_number_original']:
-                    word = condition['local_company_number_original'].split(',')
-                    word = list(filter(None, set(word)))
+                    add_condition(order_disp, '管轄社法人番号（除去）', condition['local_company_number_delete'] + search_condition)
 
-                    if sub_queries[16] is None:
-                        sub_queries[16] = Q()
-                    if temp_queries[16] is None:
-                        temp_queries[16] = Q()
-                    for w in word:
-                        temp_queries[16] |= Q(
-                            index__local_company_id=w.replace(',', ''))
-
-                    if condition['where_type'] == 'or':
-                        # sub_queries[16] |= temp_queries[16]
-                        # temp_queries[16] = Q()
-                        if len(word) > 1:
-                            number_of_search_words += len(word)
-                    else:
-                        number_of_search_words += len(word)
-
-                    # if index + 1 == len(conditions):
-                    #     sub_queries[16] |= temp_queries[16]
-                    #     sub_queries[16] &= Q(
-                    #         index__add_flg=0) | Q(index__add_flg=2)
-
-                    add_condition(order_disp, '管轄社法人番号（元データ）',
-                                  ','.join(word) + search_condition)
-
-                # 管轄社法人番号（統合フィールド）の検索
-                if 'local_company_number_total' in condition and condition['local_company_number_total']:
-                    word = condition['local_company_number_total'].split(',')
-                    word = list(filter(None, set(word)))
-
-
-                    if sub_queries[17] is None:
-                        sub_queries[17] = Q()
-                    if temp_queries[17] is None:
-                        temp_queries[17] = Q()
-                    for w in word:
-                        temp_queries[17] |= Q(index__local_company_id=w.replace(',', ''))
-
-                    if condition['where_type'] == 'or':
-                        # sub_queries[17] |= temp_queries[17]
-                        # temp_queries[17] = Q()
-                        if len(word) > 1:
-                            number_of_search_words += len(word)
-                    else:
-                        number_of_search_words += len(word)
-                    # if index + 1 == len(conditions):
-                    #     sub_queries[17] |= temp_queries[17]
-                    #     sub_queries[17] &= Q(index__add_flg=0) | Q(index__add_flg=1)
-
-                    add_condition(order_disp, '管轄社法人番号（統合フィールド）',
-                                  ','.join(word) + search_condition)
                 # 管轄社の検索
                 if 'local_company' in condition and condition['local_company']:
 
-                    if sub_queries[18] is None:
-                        sub_queries[18] = Q()
-
                     local_comp_list = condition['local_company']
-
                     local_comp_result_list_disp = list()
 
                     if isinstance(local_comp_list, list):
@@ -1155,21 +981,19 @@ def searchresult(request):
                             for i in LocalCompany.objects.filter(id=comp):
                                 local_comp_result_list_disp.append(
                                     i.local_company_name)
-                        sub_queries[18] |= Q(
+                        sub_queries &= Q(
                             index__local_company_id__in=local_comp_list)
                     else:
                         for i in LocalCompany.objects.filter(id=local_comp_list):
                             local_comp_result_list_disp.append(
                                 i.local_company_name)
-                        sub_queries[18] |= Q(
+                        sub_queries &=  Q(
                             index__local_company_id=local_comp_list)
 
                     add_condition(order_disp, '管轄社',
                                   local_comp_result_list_disp)
-                if 'local_company_exclude' in condition and condition['local_company_exclude']:
 
-                    if sub_queries[19] is None:
-                        sub_queries[19] = Q()
+                if 'local_company_exclude' in condition and condition['local_company_exclude']:
 
                     local_comp_list = condition['local_company_exclude']
                     local_comp_result_list_disp = list()
@@ -1178,127 +1002,24 @@ def searchresult(request):
                             for i in LocalCompany.objects.filter(id=comp):
                                 local_comp_result_list_disp.append(
                                     i.local_company_name)
-                        sub_queries[19] = ~Q(
+                        sub_queries = ~Q(
                             index__local_company_id__in=local_comp_list)
                     else:
                         for i in LocalCompany.objects.filter(id=local_comp_list):
                             local_comp_result_list_disp.append(
                                 i.local_company_name)
-                        sub_queries[19] = ~Q(
+                        sub_queries = ~Q(
                             index__local_company_id=local_comp_list)
 
                     add_condition(order_exclude_disp, '管轄社',
                                   local_comp_result_list_disp)
 
-                # 管轄社法人番号（追加フィールド）の検索
-                if 'local_company_number_add' in condition and condition['local_company_number_add']:
-                    word = condition['local_company_number_add'].split(',')
-                    word = list(filter(None, set(word)))
-
-                    if sub_queries[20] is None:
-                        sub_queries[20] = Q()
-                    if temp_queries[20] is None:
-                        temp_queries[20] = Q()
-                    for w in word:
-                        temp_queries[20] |= Q(index__local_company_id=w.replace(',', ''))
-
-                    if condition['where_type'] == 'or':
-                        # sub_queries[20] |= temp_queries[20]
-                        # temp_queries[20] = Q()
-                        if len(word) > 1:
-                            number_of_search_words += len(word)
-                    else:
-                        number_of_search_words += len(word)
-                    # if index + 1 == len(conditions):
-                    #     sub_queries[20] |= temp_queries[20]
-                    #     sub_queries[20] &= Q(index__add_flg=1) | Q(index__add_flg=3)
-
-                    add_condition(order_disp, '管轄社法人番号（追加フィールド）',
-                                  ','.join(word) + search_condition)
-
-                # 管轄社法人番号（除去フィールド）の検索
-                if 'local_company_number_delete' in condition and condition['local_company_number_delete']:
-                    word = condition['local_company_number_delete'].split(',')
-                    word = list(filter(None, set(word)))
-
-                    if sub_queries[21] is None:
-                        sub_queries[21] = Q()
-                    if temp_queries[21] is None:
-                        temp_queries[21] = Q()
-                    for w in word:
-                        temp_queries[21] |= Q(index__local_company_id=int(w.replace(',', '')))
-
-                    if condition['where_type'] == 'or':
-                        # sub_queries[21] |= temp_queries[21]
-                        # temp_queries[21] = Q()
-                        if len(word) > 1:
-                            number_of_search_words += len(word)
-                    else:
-                        number_of_search_words += len(word)
-                    # if index + 1 == len(conditions):
-                    #     sub_queries[21] |= temp_queries[21]
-                    #     sub_queries[21] &= Q(index__add_flg=3) | Q(index__add_flg=2)
-
-                    add_condition(order_disp, '管轄社法人番号（除去フィールド）',
-                                  ','.join(word) + search_condition)
-
                 index += 1
-            for sub_query in sub_queries:
-                if sub_query is not None:
-                    q_query &= sub_query
-            # print(cc_keyword_pack)
-
-            cc_keyword_query = make_cc_query(cc_keyword_pack)
-            # print(cc_keyword_query)
-    
-            q_query &= cc_keyword_query
-
-            idx_list_0, idx_list_1, idx_list_2, idx_list_3 = [], [], [], []
-            for i in range(len(dup_idx)):
-                if dup_idx[i][1] == 0:
-                    idx_list_0.append([dup_idx[i][0], dup_idx[i][2]])
-                elif dup_idx[i][1] == 1:
-                    idx_list_1.append([dup_idx[i][0], dup_idx[i][2]])
-                elif dup_idx[i][1] == 2:
-                    idx_list_2.append([dup_idx[i][0], dup_idx[i][2]])
-                elif dup_idx[i][1] == 3:
-                    idx_list_3.append([dup_idx[i][0], dup_idx[i][2]])
-
-            query_0, query_1, query_2, query_3 = Q(), Q(),Q(), Q()
-
-            for idx_q in idx_list_0:
-                if idx_q[1] == 'and':
-                    query_0 &= Q(index__local_company_id=idx_q[0])
-                elif idx_q[1] == 'or':
-                    query_0 |= Q(index__local_company_id=idx_q[0])
-            if len(query_0) > 0:
-                query_0 &= Q(index__add_flg=0) | Q(index__add_flg=2)
-
-            for idx_q in idx_list_1:
-                if idx_q[1] == 'and':
-                    query_1 &= Q(index__local_company_id=idx_q[0])
-                elif idx_q[1] == 'or':
-                    query_1 |= Q(index__local_company_id=idx_q[0])
-            if len(query_1) > 0:
-                query_1 &= Q(index__add_flg=0) | Q(index__add_flg=1)
-
-            for idx_q in idx_list_2:
-                if idx_q[1] == 'and':
-                    query_2 &= Q(index__local_company_id=idx_q[0])
-                elif idx_q[1] == 'or':
-                    query_2 |= Q(index__local_company_id=idx_q[0])
-            if len(query_2) > 0:
-                query_2 &= Q(index__add_flg=3) | Q(index__add_flg=1)
-
-            for idx_q in idx_list_3:
-                if idx_q[1] == 'and':
-                    query_3 &= Q(index__local_company_id=idx_q[0])
-                elif idx_q[1] == 'or':
-                    query_3 |= Q(index__local_company_id=idx_q[0])
-            if len(query_3) > 0:
-                query_3 &= Q(index__add_flg=2) | Q(index__add_flg=3)
-
-            q_query = q_query | query_0 | query_1 | query_2 | query_3
+        
+            sub_queries &= make_cc_query(temp_cc_pack)
+            q_query |= sub_queries
+            sub_queries = Q()
+            temp_cc_pack = []           
 
         else:
             content = {
@@ -1318,8 +1039,6 @@ def searchresult(request):
     if not request.user.has_perm('contract_index.view_hidden'):
         indexes = indexes.filter(hidden_flag=False)
 
-    indexes_dash = indexes
-
     # ソートオーダ設定
     sort_key = ''
     if 'sort_order' in request.POST:
@@ -1334,13 +1053,7 @@ def searchresult(request):
     if 'special_search' in request.POST:
         pass
     else:
-        if (number_of_search_words > 1):
-            indexes = indexes.filter(deleted_flag=False, **order).filter(q_query).annotate(
-                number_of_count=Count('*')).filter(number_of_count__gte=number_of_search_words).exclude(
-                **order_exclude).order_by(sort_key)
-        else:
-            indexes = indexes.filter(deleted_flag=False, **order).filter(q_query).exclude(**order_exclude).order_by(
-                sort_key)
+        indexes = indexes.filter(deleted_flag=False, **order).filter(q_query).exclude(**order_exclude).order_by(sort_key)
 
     
     # スーパーユーザでなければ管轄社で表示を絞る
