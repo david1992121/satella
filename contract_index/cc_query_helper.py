@@ -62,3 +62,22 @@ def make_cc_query(keyword_pack):
     else:
         return Q()
         
+
+# 管轄社法人番号のクエリ作成
+def make_cn_query(keyword_pack):
+
+    if len(keyword_pack) > 0:
+        query_set = Index.objects.all()
+        for pack_item in keyword_pack:
+            query = Q(index__local_company_id = pack_item["keyword"])
+            sub_query = None
+            for flag_item in pack_item["add_flg"]:
+                if sub_query == None:
+                    sub_query = Q(index__add_flg = flag_item)
+                else:
+                    sub_query |= Q(index__add_flg = flag_item)
+            query &= sub_query
+            query_set = query_set.filter(query)
+        return Q(id__in = query_set.values_list("id", flat=True))
+    else:
+        return Q()

@@ -31,7 +31,7 @@ import pprint
 # from .models import Company
 from .models import (Index, IndexLocalCompany, LocalCompany,
                      RestrictLocalCompany)
-from .cc_query_helper import make_cc_query
+from .cc_query_helper import make_cc_query, make_cn_query
 
 def original_classification_dict():
     """
@@ -735,14 +735,17 @@ def searchresult(request):
 
             sub_queries = Q()
             temp_cc_pack = []
+            temp_cn_pack = []
 
             for key, condition in conditions.items():
 
                 if condition["where_type"] == "or":
                     sub_queries &= make_cc_query(temp_cc_pack)
+                    sub_queries &= make_cn_query(temp_cn_pack)
                     q_query |= sub_queries
                     sub_queries = Q()
                     temp_cc_pack = []
+                    temp_cn_pack = []
 
                 search_condition = '('
                 if index == 0:
@@ -784,7 +787,7 @@ def searchresult(request):
                         add_condition(order_disp, '契約当事者(完全一致)',
                                       condition['contract_companies'])
                         sub_queries &= Q(
-                            contract_title__iexact = condition['contract_companies'])
+                            contract_companies__iexact = condition['contract_companies'])
                     else:
                         temp_cc_pack.append({
                             "keyword": condition['contract_companies'],
@@ -792,7 +795,7 @@ def searchresult(request):
                         })
 
                         sub_queries &= Q(
-                            contract_title__icontains = condition['contract_companies'])
+                            contract_companies__icontains = condition['contract_companies'])
 
                         add_condition(order_disp, '契約当事者(部分一致)',
                                       condition['contract_companies'])
@@ -943,30 +946,46 @@ def searchresult(request):
 
                 # 管轄社法人番号（元データ）の検索
                 if 'local_company_number_original' in condition and condition['local_company_number_original']:
-                    sub_queries &= Q(index__local_company_id = condition['local_company_number_original']) 
-                    sub_queries &= (Q(index__add_flg = 0) | Q(index__add_flg = 2))
+                    temp_cn_pack.append({
+                        "keyword": condition['local_company_number_original'],
+                        "add_flg": [0, 2]
+                    })
+                    # sub_queries &= Q(index__local_company_id = condition['local_company_number_original']) 
+                    # sub_queries &= (Q(index__add_flg = 0) | Q(index__add_flg = 2))
 
                     add_condition(order_disp, '管轄社法人番号（元）', condition['local_company_number_original'] + search_condition)
                     
 
                 # 管轄社法人番号（統合フィールド）の検索
                 if 'local_company_number_total' in condition and condition['local_company_number_total']:
-                    sub_queries &= Q(index__local_company_id = condition['local_company_number_total']) 
-                    sub_queries &= (Q(index__add_flg = 0) | Q(index__add_flg = 1))
+                    temp_cn_pack.append({
+                        "keyword": condition['local_company_number_total'],
+                        "add_flg": [0, 1]
+                    })
+                    # sub_queries &= Q(index__local_company_id = condition['local_company_number_total']) 
+                    # sub_queries &= (Q(index__add_flg = 0) | Q(index__add_flg = 1))
 
                     add_condition(order_disp, '管轄社法人番号（統合）', condition['local_company_number_total'] + search_condition)
 
                 # 管轄社法人番号（追加フィールド）の検索
                 if 'local_company_number_add' in condition and condition['local_company_number_add']:
-                    sub_queries &= Q(index__local_company_id = condition['local_company_number_add']) 
-                    sub_queries &= (Q(index__add_flg = 1) | Q(index__add_flg = 3))
+                    temp_cn_pack.append({
+                        "keyword": condition['local_company_number_add'],
+                        "add_flg": [3, 1]
+                    })
+                    # sub_queries &= Q(index__local_company_id = condition['local_company_number_add']) 
+                    # sub_queries &= (Q(index__add_flg = 1) | Q(index__add_flg = 3))
 
                     add_condition(order_disp, '管轄社法人番号（追加）', condition['local_company_number_add'] + search_condition)
 
                 # 管轄社法人番号（除去フィールド）の検索
                 if 'local_company_number_delete' in condition and condition['local_company_number_delete']:
-                    sub_queries &= Q(index__local_company_id = condition['local_company_number_delete']) 
-                    sub_queries &= (Q(index__add_flg = 2) | Q(index__add_flg = 3))
+                    temp_cn_pack.append({
+                        "keyword": condition['local_company_number_delete'],
+                        "add_flg": [3, 2]
+                    })
+                    # sub_queries &= Q(index__local_company_id = condition['local_company_number_delete']) 
+                    # sub_queries &= (Q(index__add_flg = 2) | Q(index__add_flg = 3))
 
                     add_condition(order_disp, '管轄社法人番号（除去）', condition['local_company_number_delete'] + search_condition)
 
@@ -1017,9 +1036,11 @@ def searchresult(request):
                 index += 1
         
             sub_queries &= make_cc_query(temp_cc_pack)
+            sub_queries &= make_cn_query(temp_cn_pack)
             q_query |= sub_queries
             sub_queries = Q()
-            temp_cc_pack = []           
+            temp_cc_pack = []
+            temp_cn_pack = []
 
         else:
             content = {
