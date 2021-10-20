@@ -787,7 +787,7 @@ def searchresult(request):
                         add_condition(order_disp, '契約当事者(完全一致)',
                                       condition['contract_companies'])
                         sub_queries &= Q(
-                            contract_companies__iexact = condition['contract_companies'])
+                            contract_companies__icontains = "/{}/".format(condition['contract_companies']))
                     else:
                         temp_cc_pack.append({
                             "keyword": condition['contract_companies'],
