@@ -2065,33 +2065,46 @@ def upload2(request):
                 for lc in line[IDX_BASE_LOCALCOMPANIES_NUMBER].replace("'", '').split(','):
                     lc2 = LocalCompany.objects.filter(id=lc)
                     for l in lc2:
-                        IndexLocalCompany(
+                        IndexLocalCompany.objects.create(
                             index_id=line[IDX_NO],
                             local_company_id=l.id,
                             add_flg=0,
-                        ).save()
+                        )
                         tmp.append(l.id)
+
             # 追加管轄社法人番号
+            additional_numbers = []
             if line[IDX_ADDITIONAL_LOCALCOMPANIES_NUMBER].replace("'", ''):
                 for lc in line[IDX_ADDITIONAL_LOCALCOMPANIES_NUMBER].replace("'", '').split(','):
                     lc2 = LocalCompany.objects.filter(id=lc)
                     for l in lc2:
-                        IndexLocalCompany(
+                        IndexLocalCompany.objects.create(
                             index_id=line[IDX_NO],
                             local_company_id=l.id,
                             add_flg=1,
                         ).save()
                         tmp.append(l.id)
+                        additional_numbers.append(lc)
+
             # 除外管轄社法人番号
             if line[IDX_EXCLUSION_LOCALCOMPANIES_NUMBER].replace("'", ''):
                 for lc in line[IDX_EXCLUSION_LOCALCOMPANIES_NUMBER].replace("'", '').split(','):
                     lc2 = LocalCompany.objects.filter(id=lc)
-                    for l in lc2:
-                        IndexLocalCompany(
+                    
+                    if lc in additional_numbers:
+                        for al in IndexLocalCompany.objects.filter(
                             index_id=line[IDX_NO],
-                            local_company_id=l.id,
-                            add_flg=2,
-                        ).save()
+                            local_company_id=lc
+                        ):
+                            al.add_flg=3
+                            al.save()                        
+                    else:
+                        for l in lc2:
+                            IndexLocalCompany.objects.create(
+                                index_id=line[IDX_NO],
+                                local_company_id=l.id,
+                                add_flg=2
+                            )
             line_num += 1
 
         # ログ:CSVインポート
