@@ -1493,6 +1493,7 @@ def upload(request):
 
         view_id_list = list()
         for line in csv_file:
+
             info('デバッグ用:csv新規インポート3')
             # 見出し行チェック
             # if is_header_row:
@@ -1627,8 +1628,8 @@ def upload(request):
                 # 日付の精査処理
                 # 締結日
                 if line[IDX_SIGNING_DATE] and line[IDX_SIGNING_DATE] != '-':
-                    signing_date = date_scrutinizer(line[2])
-                    signing_date_disp = zenhan(line[2])
+                    signing_date = date_scrutinizer(line[IDX_SIGNING_DATE])
+                    signing_date_disp = zenhan(line[IDX_SIGNING_DATE])
                 else:
                     signing_date = None
                     signing_date_disp = ''
@@ -1708,35 +1709,35 @@ def upload(request):
                 # 保管場所URL
                 storage_location_url = line[IDX_PDF_PATH]
 
-                Index(
-                    pdf_path=line[IDX_PDF_PATH],
-                    contract_title=zenhan(line[IDX_CONTRACT_TITLE]),
-                    signing_target_kou='',
-                    signing_target_otsu='',
-                    contract_companies=zenhan(line[IDX_CONTRACT_COMPANIES]),
-                    signing_date=signing_date,
-                    signing_date_disp=signing_date_disp,
-                    expiration_date=expiration_date,
-                    expiration_date_disp=expiration_date_disp,
-                    auto_update=auto_update,
-                    file_name=zenhan(file_name),
-                    remarks=remarks,
-                    hidden_flag=hidden_flag,
-                    contract_termination_flag=contract_termination_flag,
-                    deleted_flag=False,
-                    create_user=request.user.username,
-                    modify_user=request.user.username,
-                    original_classification=original_classification,
-                    loan_guarantee_availability=line[IDX_LOAN_GUARANTEE_AVAILABILITY],
-                    ringi_no=ringi_no,
-                    ringi_url='',
-                    document_number=line[IDX_DOCUMENT_NUMBER],
+                new_index = Index.objects.create(
+                    pdf_path = storage_location_url,
+                    contract_title = zenhan(line[IDX_CONTRACT_TITLE]),
+                    signing_target_kou = '',
+                    signing_target_otsu = '',
+                    contract_companies = zenhan(line[IDX_CONTRACT_COMPANIES]),
+                    signing_date = signing_date,
+                    signing_date_disp = signing_date_disp,
+                    expiration_date = expiration_date,
+                    expiration_date_disp = expiration_date_disp,
+                    auto_update = auto_update,
+                    file_name = zenhan(file_name),
+                    remarks = remarks,
+                    hidden_flag = hidden_flag,
+                    contract_termination_flag = contract_termination_flag,
+                    deleted_flag = False,
+                    create_user = request.user.username,
+                    modify_user = request.user.username,
+                    original_classification = original_classification,
+                    loan_guarantee_availability = line[IDX_LOAN_GUARANTEE_AVAILABILITY],
+                    ringi_no = ringi_no,
+                    ringi_url = '',
+                    document_number = line[IDX_DOCUMENT_NUMBER],
                     # line[8]
                     # line[9]
                     original_storage_location=original_storage_location,
-                ).save()
+                )
                 inserted_records += 1
-                view_id_list.append(Index.objects.latest('create_date').id)
+                view_id_list.append(new_index.id)
                 info('デバッグ用:csv新規インポート4')
 
                 # 管轄社名の処理
@@ -1757,10 +1758,10 @@ def upload(request):
                 if line[IDX_COMPANY_NUMBER]:
                     for input_lc in line[IDX_COMPANY_NUMBER].split(','):
                         info(input_lc)
-                        IndexLocalCompany(
-                            index_id=Index.objects.latest('create_date').id,
+                        IndexLocalCompany.objects.create(
+                            index_id=new_index.id,
                             local_company_id=input_lc,
-                        ).save()
+                        )
                 info('INSERT local_company_id')
 
                 # for lc in LocalCompany.objects.all():
@@ -1779,8 +1780,7 @@ def upload(request):
 
                 # 管轄社がない場合の処置
                 if first_id_inserted_now == 0:
-                    first_id_inserted_now = Index.objects.latest(
-                        'create_date').id
+                    first_id_inserted_now = new_index.id
                 line_num += 1  # ?
 
         # ログ:CSVインポート
