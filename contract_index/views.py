@@ -167,7 +167,7 @@ def changerecord(request):
     add_localcompany_number = request.POST['add_localcompany_number']
     delete_localcompany_number = request.POST['delete_localcompany_number']
     after_localcompany_number = request.POST['after_localcompany_number']
-    company_name = request.POST['company_name']
+    company_name = request.POST.get('company_name', '')
     # 文字列の辞書化
     if 'post_dict' in request.POST:
         post_dict = ast.literal_eval(request.POST['post_dict'])

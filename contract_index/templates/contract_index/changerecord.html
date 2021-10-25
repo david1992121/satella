@@ -222,7 +222,10 @@
                         {% comment %} 管轄社名 {% endcomment %}
                         <td>
                             <div id="companies_name">
-                                {{ company_name }}
+                                {% with i_lc=i.index.all %}
+                                    {% for c in i_lc %}{% if c.add_flg == 0 or c.add_flg == 1 %}{{ c.local_company }},
+                                    {% endif %}{% endfor %}
+                                {% endwith %}
                             </div>
 
                         </td>
