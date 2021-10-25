@@ -65,6 +65,8 @@ class Index(models.Model):
     ringi_url = models.CharField(null=True, max_length=1000)
     # 稟議番号
     ringi_no = models.CharField(null=True, max_length=100)
+    # 相手先法人番号
+    partner_corporate_number = models.CharField(null=True, max_length=300)
 
     def __str__(self):
         # return u"{0}:{1}... ".format(self.id, self.contract_title)

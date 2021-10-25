@@ -84,6 +84,7 @@
                 <th>管轄社名</th>
                 {% endif %}
                 <th>原本保管場所</th>
+                <th>相手先法人番号</th>
                 <th></th>
             </tr>
             </thead>
@@ -233,7 +234,6 @@
 
                         {% comment %} 原本保管場所 {% endcomment %}
                         <td>
-
                             <select name='change_original_storage_location'>
                                 <option value="None"></option>
                                 {% for k, v in original_storage_location_dict %}
@@ -241,6 +241,12 @@
                                             {% if i.original_storage_location == k %}selected{% endif %}>{{ v }}</option>
                                 {% endfor %}
                             </select>
+                        </td>
+
+                        {% comment %} 相手先法人番号 {% endcomment %}
+                        <td>
+                            <input name="change_partner_corporate_number" type="text"
+                                value='{% if i.partner_corporate_number %}{{ i.partner_corporate_number }}{% endif %}'>
                         </td>
 
                         {% comment %} 確定ボタン {% endcomment %}

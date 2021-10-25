@@ -318,6 +318,12 @@
                     </th>
                     {% endif %}
 
+                    <th data-column-type="location">
+                        <button type="submit" name="sort_key" value="partner_corporate_number"
+                            class="btn btn-outline-dark btn-sm rounded-0">相手先法人番号
+                        </button>
+                    </th>
+
                     {% if perms.contract_index.change_record %}
                         <th class='narrow disabled'></th>
                     {% endif %}
@@ -446,6 +452,10 @@
                             {% if i.original_storage_location == k %}{{ v }}{% endif %}{% endfor %}{% else %}
                             <span class="none">None</span>{% endif %}</td>
                 {% endif %}
+
+                {% comment %} 相手先法人番号 {% endcomment %}
+                <td class="leftalign  textwrap">{% if i.partner_corporate_number %}{{ i.partner_corporate_number }}{% else %}
+                    <span class="none">{{ i.partner_corporate_number }}</span>{% endif %}</td>
 
                 {% comment %} 編集ボタン {% endcomment %}
                 {% if perms.contract_index.change_record %}

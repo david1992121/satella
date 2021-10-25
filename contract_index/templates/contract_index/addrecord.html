@@ -38,7 +38,11 @@
     </form>
   </div>
   <div class='alert-primary infobar'>
-  追加するレコード情報を入力してください。
+  {% if result %} 
+    <strong style="color: red;">{{ result }} </strong>
+  {% else %}
+    追加するレコード情報を入力してください。
+  {% endif %}
   </div>
 </div>
 <!-- ヘッダーメニューここまで -->
@@ -63,54 +67,65 @@
         {% endif %}
         <th>管轄社法人番号</th>
         <th>原本保管場所</th>
+        <th>相手先法人番号</th>
         <th></th>
       </tr>
     </thead>
     <tbody>
       <tr>
-        <form method="post" action="add_rec/">{% csrf_token %}
+        <form method="post">{% csrf_token %}
 
           {% comment %} 契約書名 {% endcomment %}
-          <td><input name='contract_title' required type="text" placeholder="必須入力"></td>
+          <td>
+            <input name='contract_title' required type="text" value="{{ old.contract_title }}" placeholder="必須入力">            
+          </td>
 
           {% comment %} 契約当事者 {% endcomment %}
-          <td><input name='contract_companies' required type="text" placeholder="必須入力"></td>
+          <td><input name='contract_companies' required type="text" value="{{ old.contract_companies }}" placeholder="必須入力"></td>
 
           {% comment %} 締結日 {% endcomment %}
           <td class="date_input">
-          <input name='signing_date_y' type="number" placeholder="年" class="rightalign date_input_box_y" min="1950" max="2500">
-          <input name='signing_date_m' type="number" placeholder="月" class="rightalign date_input_box_md" min="1" max="12">
-          <input name='signing_date_d' type="number" placeholder="日" class="rightalign date_input_box_md" min="1" max="31"></td>
+            <input name='signing_date_y' type="number" placeholder="年" class="rightalign date_input_box_y" min="1950" max="2500"
+              value="{{ old.signing_date_y }}">
+            <input name='signing_date_m' type="number" placeholder="月" class="rightalign date_input_box_md" min="1" max="12"
+              value="{{ old.signing_date_m }}">
+            <input name='signing_date_d' type="number" placeholder="日" class="rightalign date_input_box_md" min="1" max="31"
+              value="{{ old.signing_date_d }}">
+          </td>
 
           {% comment %} 原本区分 {% endcomment %}
           <td>
-            <input name="original_classification" type="text">
+            <input name="original_classification" value="{{ old.original_classification }}" type="text">
           </td>
 
           {% comment %} 光通信Grpの債務保証有無 {% endcomment %}
-          <td><input name='loan_guarantee_availability' type="text"></input></td>
+          <td><input name='loan_guarantee_availability' value="{{ old.loan_guarantee_availability }}" type="text"></input></td>
 
           {% comment %} 稟議番号 {% endcomment %}
-          <td><input name='ringi_no' type="text"></input></td>
+          <td><input name='ringi_no' value="{{ old.ringi_no }}" type="text"></input></td>
 
           {% comment %} 書面番号 {% endcomment %}
-          <td><input name='document_number' type="text"></input></td>
+          <td><input name='document_number' value="{{ old.document_number }}" type="text"></input></td>
 
           {% comment %} 保管場所URL {% endcomment %}
           {% if perms.contract_index.pdf_path %}
-          <td><input name='pdf_path' type="text" value='{{ i.pdf_path }}'></td>
+          <td><input name='pdf_path' type="text" value='{{ old.pdf_path }}'></td>
           <!-- <td><input name='storage_location_url' type="text"></input></td> -->
           {% endif %}
 
           {% comment %} 非開示 {% endcomment %}
           {% if perms.contract_index.hidden_flag %}
           <td>
-            <input class="" type="checkbox" value="true" name='hidden_flag'>
+            {% if old.hidden_flag %}
+              <input class="" type="checkbox" name='hidden_flag' checked>
+            {% else %}
+              <input class="" type="checkbox" name='hidden_flag'>
+            {% endif %}
           </td>
           {% endif %}
 
           {% comment %} 管轄社法人番号 {% endcomment %}
-          <td><input id="local_company_number" name='local_company_number' type="text"></td>
+          <td><input id="local_company_number" name='local_company_number' value="{{ old.local_company_number }}" type="text"></td>
 
           {% comment %} 管轄社名 {% endcomment %}
           <!-- <td>
@@ -121,11 +136,18 @@
           <td>
             <select name='original_storage_location'>
               <option value="None"></option>
-            {% for k, v in original_storage_location_dict %}
-              <option value="{{ k }}">{{ v }}</option>
-            {% endfor %}
+              {% for k, v in original_storage_location_dict %}
+                {% if old.original_storage_location == k %}
+                  <option value="{{ k }}" selected>{{ v }}</option>
+                {% else %}
+                  <option value="{{ k }}">{{ v }}</option>
+                {% endif %}
+              {% endfor %}
             </select>
           </td>
+
+          {% comment %} 相手先法人番号 {% endcomment %}
+          <td><input id="partner_corporate_number" name='partner_corporate_number' value="{{ old.partner_corporate_number }}" type="text"></td>
 
           <td nowrap>
             <button type="submit" name="edit_{{ i.id }}"  class="submit btn btn-info btn-sm btn-block">追加</button>

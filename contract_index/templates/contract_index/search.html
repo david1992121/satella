@@ -2,6 +2,7 @@
 {% comment %} 検索開始画面用テンプレートです
 現在はログイン直後に遷移してくるページです
 {% endcomment %}
+
 <form method="post" action="searchresult/" target="_blank" name="search">{% csrf_token %}
   <!-- ヘッダーメニュー -->
   <div id='header'>
@@ -148,7 +149,10 @@
             <label class="form-check-label" for="sort_original_storage_location">原本保管場所</label>
           </th>
           {% endif %}
-
+          <th>
+            <input type="radio" name="sort_key" value="partner_corporate_number" id="sort_partner_corporate_number">
+            <label class="form-check-label" for="sort_partner_corporate_number">相手先法人番号</label>
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -324,6 +328,12 @@
           </td>
           {% endif %}
 
+          {% comment %} 相手先法人番号 {% endcomment %}
+          <td>
+            <input name="conditions[0][partner_corporate_number]" type="text" onkeydown="go();" id="partner_corporate_number_text"
+              value="" tabindex="3100" />
+          </td>
+
         </tr>
       </tbody>
     </table>
@@ -427,6 +437,9 @@
     }
     if (is_empty) {
       is_empty = check_empty('ringi_no');
+    }
+    if (is_empty) {
+      is_empty = check_empty('partner_corporate_number');
     }
 
     {% if perms.contract_index.document_number %}
@@ -574,7 +587,9 @@
     {% if perms.contract_index.original_storage_location  and perms.contract_index.kanrika　%}
     var cell_original_storage_location = row.insertCell(-1);
     {% endif %}
-    // var cell_remarks = row.insertCell(-1);
+    
+    // 相手先法人番号
+    var cell_partner_corporate_number = row.insertCell(-1);
 
     // NO
     // var cell_id = row.insertCell(-1);
@@ -597,6 +612,8 @@
 
 
     const input_ringi_no = document.search.ringi_no?.value ? document.search.ringi_no?.value : '';
+    const input_partner_corporate_number = document.search.partner_corporate_number?.value ? document.search.partner_corporate_number?.value : '';
+
 
     {% if perms.contract_index.document_number %}
     const input_document_number = document.search.document_number?.value;
@@ -765,6 +782,12 @@
         '</select>'
       ].join("");
       {% endif %}
+    }
+
+    // ■パネル追加 相手先法人番号
+    if (where_type === 'or'){
+        cell_partner_corporate_number.innerHTML =
+            `<input name="conditions[${row_num}][partner_corporate_number]" type="text" onkeydown="go();" id="partner_corporate_number_text" value="${input_partner_corporate_number ? input_partner_corporate_number : ''}" tabindex="${row_num * 10 + 3101}"/>`;
     }
 
     if(andCount > 3){

@@ -56,8 +56,10 @@ def add_condition(order_dict, key, condition):
     else:
         order_dict[key] = condition
 
-# 各ページへの遷移処理 ---------------------------------------------------------------------
+def isalnum_ascii(s):
+    return s.isalnum() and len(s) == len(s.encode())
 
+# 各ページへの遷移処理 ---------------------------------------------------------------------
 
 @login_required
 def index(request):
@@ -122,39 +124,183 @@ def addrecord(request):
     """
     レコード追加への遷移です。
     """
-    indexes = Index.objects.filter(deleted_flag=False)
-    # スーパーユーザでなければ管轄社で表示を絞る
-    if not request.user.is_superuser:
-        # 管轄社の処理
-        lc_list = list()
-        src_list = list()
-        # 新形式 2019/05/21
-        rlc = RestrictLocalCompany.objects.filter(user_id=request.user.id)
-        if rlc:
-            for r in rlc:
-                src_list.append(r.local_company_id)
+    
+    if request.method == "POST":
+        # 管轄社番号のチェック        
+        lc_list = request.POST['local_company_number'].split(",")
+        if lc_list:
+            for lc in lc_list:
+                if lc:
+                    if not isalnum_ascii(lc.strip()) or not len(lc.strip()) == 13:
+                        content = {
+                            'name': request.user,
+                            'indexes': [],
+                            'indexes_localCompanies': [],
+                            'localCompanies': LocalCompany.objects.all().order_by('local_company_name'),
+                            'result': "管轄社番号を正しく入力してください",
+                            'original_classification_dict': original_classification_dict().items(),
+                            'original_storage_location_dict': original_storage_location_dict().items(),
+                            'old': request.POST
+                        }
+                        return render(request, 'contract_index/addrecord.html', content)
 
-            for i in IndexLocalCompany.objects.filter(local_company_id__in=src_list):
-                lc_list.append(i.index_id)
-            indexes = indexes.filter(id__in=lc_list)
-    # hidden_flagの処理
-    if not request.user.has_perm('contract_index.view_hidden'):
-        indexes = indexes.filter(hidden_flag=False)
-    # 管轄社カラム用
-    if request.user.has_perm('contract_index.read_localcompany'):
-        indexes = indexes.prefetch_related('localcompanies')
-    content = {
-        'name': request.user,
-        # 削除フラグは取得しない
-        # 'indexes': Index.objects.all(),
-        'indexes': indexes,
-        'indexes_localCompanies': IndexLocalCompany.objects.all(),
-        'localCompanies': LocalCompany.objects.all().order_by('local_company_name'),
-        'result': None,
-        'original_classification_dict': original_classification_dict().items(),
-        'original_storage_location_dict': original_storage_location_dict().items(),
-    }
-    return render(request, 'contract_index/addrecord.html', content)
+        # 日付の精査処理
+        # 締結日
+        signing_date = ''
+        signing_date_disp = ''
+        if request.POST['signing_date_y']:
+            signing_date_disp += request.POST['signing_date_y']
+            if request.POST['signing_date_m']:
+                signing_date_disp += '-' + request.POST['signing_date_m']
+                if request.POST['signing_date_d']:
+                    signing_date_disp += '-' + request.POST['signing_date_d']
+                    signing_date = signing_date_disp
+                else:
+                    signing_date = signing_date = signing_date_disp + '-01'
+            else:
+                signing_date = signing_date_disp + '-01-01'
+        else:
+            signing_date_disp = ''
+            signing_date = None
+
+        # 有効期限
+        expiration_date = None
+        expiration_date_disp = ''
+
+        auto_update = None
+
+        # 非開示フラグ
+
+        hidden_flag = 0
+        pdf_path = ''
+        if request.POST.get('hidden_flag') == 'true':
+            hidden_flag = 1
+        if request.POST.get('pdf_path'):
+            pdf_path = request.POST['pdf_path']
+
+        # 相手先法人番号
+        number_array = request.POST['partner_corporate_number'].strip().split(",")
+        modified_val = []
+        for number_item in number_array:                            
+            if not isalnum_ascii(number_item.strip()) or not len(number_item.strip()) == 13:
+                content = {
+                    'name': request.user,
+                    'indexes': [],
+                    'indexes_localCompanies': [],
+                    'localCompanies': LocalCompany.objects.all().order_by('local_company_name'),
+                    'result': "相手先法人番号を正しく入力してください",
+                    'original_classification_dict': original_classification_dict().items(),
+                    'original_storage_location_dict': original_storage_location_dict().items(),
+                    'old': request.POST
+                }
+                return render(request, 'contract_index/addrecord.html', content)
+            modified_val.append(number_item.strip())
+        partner_corporate_number = ",".join(modified_val)
+
+        Index(
+            pdf_path=pdf_path,
+            contract_title=zenhan(request.POST['contract_title']),
+            signing_target_kou='',
+            signing_target_otsu='',
+            contract_companies=zenhan(request.POST['contract_companies']),
+            signing_date=signing_date,
+            signing_date_disp=zenhan(signing_date_disp),
+            expiration_date=expiration_date,
+            expiration_date_disp=zenhan(expiration_date_disp),
+            auto_update=auto_update,
+            file_name='',
+            remarks='',
+            # 非開示
+            hidden_flag=hidden_flag,
+            # 原本区分
+            original_classification=request.POST['original_classification'],
+            # 光通信Grpの債務保証有無
+            loan_guarantee_availability=request.POST['loan_guarantee_availability'],
+            # 稟議番号
+            ringi_no=request.POST['ringi_no'],
+            ringi_url='',
+            # 書面番号
+            document_number=request.POST['document_number'],
+            # 原本保管場所
+            original_storage_location=request.POST['original_storage_location'],
+
+            deleted_flag=False,
+            create_user=request.user.username,
+            modify_user=request.user.username,
+            partner_corporate_number=partner_corporate_number
+        ).save()
+        # ログ レコード追加
+        info('record is inserted by user id[' + request.session['_auth_user_id'] + '].(' + json.dumps(request.POST,
+                                                                                                    ensure_ascii=False) + ')')
+
+        # 管轄社の処理
+
+        # 管轄社番号
+        # lc_list = request.POST.getlist('local_company')
+        lc_list = request.POST['local_company_number'].split(",")
+        if lc_list:
+            for lc in lc_list:
+                if lc:
+                    rec = LocalCompany.objects.filter(id=int(lc))
+                    if rec:
+                        IndexLocalCompany(
+                            index_id=Index.objects.latest('create_date').id,
+                            local_company_id=int(lc),
+                        ).save()
+
+        # 結果表示
+        indexes = Index.objects.filter(deleted_flag=False,
+                                    id=Index.objects.latest('create_date').id)
+        # スーパーユーザでなければ管轄社で表示を絞る
+        # if not request.user.is_superuser:
+        #     # 管轄社の処理
+        #     lc_list = list()
+        #     src_list = list()
+        #     # 新形式 2019/05/21
+        #     rlc = RestrictLocalCompany.objects.filter(user_id=request.user.id)
+        #     if rlc:
+        #         for r in rlc:
+        #             src_list.append(r.local_company_id)
+        #         for i in IndexLocalCompany.objects.filter(local_company_id__in=src_list):
+        #             lc_list.append(i.index_id)
+        #         indexes = indexes.filter(id__in=lc_list)
+                # # print(len(indexes))
+
+        # hidden_flagの処理
+        if not request.user.has_perm('contract_index.view_hidden'):
+            indexes = indexes.filter(hidden_flag=False)
+
+        # 管轄社カラム用
+        if request.user.has_perm('contract_index.read_localcompany'):
+            indexes = indexes.prefetch_related('localcompanies')
+
+        indexes = indexes.all()[:100]
+        content = {
+            'name': request.user,
+            # 削除フラグは取得しない
+            # 'indexes': Index.objects.all(),
+            'old': {},
+            'indexes': indexes,
+            'indexes_localCompanies': IndexLocalCompany.objects.all(),
+            'result': 'レコードを追加しました。',  # result,
+            'original_classification_dict': original_classification_dict().items(),
+            'original_storage_location_dict': original_storage_location_dict().items(),
+        }
+        #     # return redirect('contract_index:index')
+        return render(request, 'contract_index/index.html', content)
+    else:
+        content = {
+            'name': request.user,
+            # 削除フラグは取得しない
+            # 'indexes': Index.objects.all(),
+            'indexes': [],
+            'indexes_localCompanies': IndexLocalCompany.objects.all(),
+            'localCompanies': LocalCompany.objects.all().order_by('local_company_name'),
+            'result': None,
+            'original_classification_dict': original_classification_dict().items(),
+            'original_storage_location_dict': original_storage_location_dict().items(),
+        }
+        return render(request, 'contract_index/addrecord.html', content)
 
 
 @login_required
@@ -284,6 +430,24 @@ def add_rec(request):
     if request.POST.get('pdf_path'):
         pdf_path = request.POST['pdf_path']
 
+    # 相手先法人番号
+    number_array = request.POST['partner_corporate_number'].strip().split(",")
+    modified_val = []
+    for number_item in number_array:                            
+        if not isalnum_ascii(number_item.strip()) or not len(number_item.strip()) == 13:
+            content = {
+                'name': request.user,
+                'indexes': [],
+                'indexes_localCompanies': [],
+                'localCompanies': LocalCompany.objects.all().order_by('local_company_name'),
+                'result': "相手先法人番号を正しく入力してください",
+                'original_classification_dict': original_classification_dict().items(),
+                'original_storage_location_dict': original_storage_location_dict().items(),
+            }
+            return render(request, 'contract_index/addrecord.html', content)
+        modified_val.append(number_item.strip())
+    partner_corporate_number = ",".join(modified_val)
+
     Index(
         pdf_path=pdf_path,
         contract_title=zenhan(request.POST['contract_title']),
@@ -314,6 +478,7 @@ def add_rec(request):
         deleted_flag=False,
         create_user=request.user.username,
         modify_user=request.user.username,
+        partner_corporate_number=partner_corporate_number
     ).save()
     # ログ レコード追加
     info('record is inserted by user id[' + request.session['_auth_user_id'] + '].(' + json.dumps(request.POST,
@@ -425,10 +590,10 @@ def searchresult(request):
     try:
         if request.POST['edit']:
             info("EDIT")
-            # print("edit part")
             rec = Index.objects.filter(id=request.POST['change_id'])
             change_id = request.POST['change_id']
             info("change_id" + change_id)
+
             with transaction.atomic():
                 for r in rec:
                     # 契約書名
@@ -542,6 +707,16 @@ def searchresult(request):
                     else:
                         r.original_storage_location = None
 
+                    # 相手先法人番号の登録
+                    if request.POST['change_partner_corporate_number'].strip() != '':
+                        number_array = request.POST['change_partner_corporate_number'].strip().split(",")
+                        modified_val = []
+                        for number_item in number_array:                            
+                            if not isalnum_ascii(number_item.strip()) or not len(number_item.strip()) == 13:
+                                raise ValueError("partner_corporate_number")
+                            modified_val.append(number_item.strip())
+                        r.partner_corporate_number = ",".join(modified_val)
+                        
                     r.modify_user = request.user.username
                     info("save:" + r.modify_user)
                     r.save()
@@ -613,7 +788,7 @@ def searchresult(request):
             # ログ:レコード 変更
             info('record(ID=' + change_id +
                  ') is updated by user id[' + request.session['_auth_user_id'] + ']')
-    except ValueError:
+    except ValueError as e:
         result = '入力に不備があり更新に失敗しました。'
     except:
         pass
@@ -943,6 +1118,16 @@ def searchresult(request):
                             sub_queries &= ~Q(original_storage_location = condition['original_storage_location_exclude'])
                             add_condition(
                                 order_exclude_disp, '原本保管場所', condition['original_storage_location_exclude'])
+                
+                # 相手先法人番号
+                if 'partner_corporate_number' in condition:
+                    if condition['partner_corporate_number'] == 'None' or condition['partner_corporate_number'] == '':
+                        pass
+                    else:
+                        cur_number = condition['partner_corporate_number']
+                        sub_queries &= Q(partner_corporate_number__startswith = "{},".format(cur_number)) | Q(partner_corporate_number__icontains = ",{},".format(cur_number)) | Q(partner_corporate_number__endswith = ",{}".format(cur_number)) | Q(partner_corporate_number__iexact = cur_number)
+                        add_condition(
+                            order_disp, '相手先法人番号', condition['partner_corporate_number'])
 
                 # 管轄社法人番号（元データ）の検索
                 if 'local_company_number_original' in condition and condition['local_company_number_original']:
