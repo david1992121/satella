@@ -110,6 +110,10 @@
           <th>
             管轄社名
           </th>
+          <th>
+            <input type="radio" name="sort_key" value="partner_corporate_number" id="sort_partner_corporate_number">
+            <label class="form-check-label" for="sort_partner_corporate_number">相手先法人番号</label>
+          </th>
           {% if perms.contract_index.original_classification %}
           <th>
             <input type="radio" name="sort_key" value="original_classification" id="sort_original_classification">
@@ -148,11 +152,7 @@
             <input type="radio" name="sort_key" value="original_storage_location" id="sort_original_storage_location">
             <label class="form-check-label" for="sort_original_storage_location">原本保管場所</label>
           </th>
-          {% endif %}
-          <th>
-            <input type="radio" name="sort_key" value="partner_corporate_number" id="sort_partner_corporate_number">
-            <label class="form-check-label" for="sort_partner_corporate_number">相手先法人番号</label>
-          </th>
+          {% endif %}          
         </tr>
       </thead>
       <tbody>
@@ -252,6 +252,12 @@
             </div>
           </td>
 
+          {% comment %} 相手先法人番号 {% endcomment %}
+          <td>
+            <input name="conditions[0][partner_corporate_number]" type="text" onkeydown="go();" id="partner_corporate_number_text"
+              value="" tabindex="3100" />
+          </td>
+
           {% comment %} 原本区分 {% endcomment %}
           {% if perms.contract_index.original_classification %}
           <td>
@@ -326,13 +332,7 @@
               {% endfor %}
             </select>
           </td>
-          {% endif %}
-
-          {% comment %} 相手先法人番号 {% endcomment %}
-          <td>
-            <input name="conditions[0][partner_corporate_number]" type="text" onkeydown="go();" id="partner_corporate_number_text"
-              value="" tabindex="3100" />
-          </td>
+          {% endif %}          
 
         </tr>
       </tbody>
@@ -558,6 +558,9 @@
     // 管轄社名
     var cell_local_company = row.insertCell(-1);
 
+    // 相手先法人番号
+    var cell_partner_corporate_number = row.insertCell(-1);
+
     // 原本区分
     {% if perms.contract_index.original_classification %}
     var cell_original_classification = row.insertCell(-1);
@@ -588,9 +591,6 @@
     var cell_original_storage_location = row.insertCell(-1);
     {% endif %}
     
-    // 相手先法人番号
-    var cell_partner_corporate_number = row.insertCell(-1);
-
     // NO
     // var cell_id = row.insertCell(-1);
 
@@ -785,10 +785,8 @@
     }
 
     // ■パネル追加 相手先法人番号
-    if (where_type === 'or'){
-        cell_partner_corporate_number.innerHTML =
-            `<input name="conditions[${row_num}][partner_corporate_number]" type="text" onkeydown="go();" id="partner_corporate_number_text" value="${input_partner_corporate_number ? input_partner_corporate_number : ''}" tabindex="${row_num * 10 + 3101}"/>`;
-    }
+    cell_partner_corporate_number.innerHTML =
+        `<input name="conditions[${row_num}][partner_corporate_number]" type="text" onkeydown="go();" id="partner_corporate_number_text" value="${input_partner_corporate_number ? input_partner_corporate_number : ''}" tabindex="${row_num * 10 + 3101}"/>`;
 
     if(andCount > 3){
       $("#addAndBtn").attr("disabled", "disabled");
