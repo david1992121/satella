@@ -66,8 +66,8 @@
         <th>非開示</th>
         {% endif %}
         <th>管轄社法人番号</th>
-        <th>原本保管場所</th>
         <th>相手先法人番号</th>
+        <th>原本保管場所</th>
         <th></th>
       </tr>
     </thead>
@@ -132,6 +132,9 @@
             <input id="local_company_name" type="text" name="local_company_name" value="自動反映js" readonly>
           </td> -->
 
+          {% comment %} 相手先法人番号 {% endcomment %}
+          <td><input id="partner_corporate_number" name='partner_corporate_number' value="{{ old.partner_corporate_number }}" type="text"></td>
+
           {% comment %} 原本保管場所 {% endcomment %}
           <td>
             <select name='original_storage_location'>
@@ -145,9 +148,6 @@
               {% endfor %}
             </select>
           </td>
-
-          {% comment %} 相手先法人番号 {% endcomment %}
-          <td><input id="partner_corporate_number" name='partner_corporate_number' value="{{ old.partner_corporate_number }}" type="text"></td>
 
           <td nowrap>
             <button type="submit" name="edit_{{ i.id }}"  class="submit btn btn-info btn-sm btn-block">追加</button>

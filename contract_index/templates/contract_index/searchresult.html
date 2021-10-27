@@ -302,6 +302,12 @@
                     {% endif %}
                     <th data-column-type="corporate" {% if perms.contract_index.view_localcompany_number_for_index %} style="display:none;" {% endif %} >管轄社法人番号<br/>（統合データ）</th>
 
+                    <th data-column-type="location">
+                        <button type="submit" name="sort_key" value="partner_corporate_number"
+                            class="btn btn-outline-dark btn-sm rounded-0">相手先法人番号
+                        </button>
+                    </th>
+
                     {% if perms.contract_index.original_classification %}
                     <th>
                         <button type="submit" name="sort_key" value="original_classification"
@@ -316,13 +322,7 @@
                                 class="btn btn-outline-dark btn-sm rounded-0">原本保管場所
                         </button>
                     </th>
-                    {% endif %}
-
-                    <th data-column-type="location">
-                        <button type="submit" name="sort_key" value="partner_corporate_number"
-                            class="btn btn-outline-dark btn-sm rounded-0">相手先法人番号
-                        </button>
-                    </th>
+                    {% endif %}                    
 
                     {% if perms.contract_index.change_record %}
                         <th class='narrow disabled'></th>
@@ -440,6 +440,10 @@
                     </td>
                 {% endwith %}
 
+                {% comment %} 相手先法人番号 {% endcomment %}
+                <td class="leftalign  textwrap">{% if i.partner_corporate_number %}{{ i.partner_corporate_number }}{% else %}
+                    <span class="none">{{ i.partner_corporate_number }}</span>{% endif %}</td>
+
                 {% comment %} 原本区分 {% endcomment %}
                 {% if perms.contract_index.original_classification %}
                 <td class="leftalign  textwrap">{{ i.original_classification }}
@@ -452,10 +456,6 @@
                             {% if i.original_storage_location == k %}{{ v }}{% endif %}{% endfor %}{% else %}
                             <span class="none">None</span>{% endif %}</td>
                 {% endif %}
-
-                {% comment %} 相手先法人番号 {% endcomment %}
-                <td class="leftalign  textwrap">{% if i.partner_corporate_number %}{{ i.partner_corporate_number }}{% else %}
-                    <span class="none">{{ i.partner_corporate_number }}</span>{% endif %}</td>
 
                 {% comment %} 編集ボタン {% endcomment %}
                 {% if perms.contract_index.change_record %}
