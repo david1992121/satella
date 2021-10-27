@@ -59,6 +59,9 @@ def add_condition(order_dict, key, condition):
 def isalnum_ascii(s):
     return s.isalnum() and len(s) == len(s.encode())
 
+def check_pc_number(s):
+    return isalnum_ascii(s) and len(s) == 13
+
 # 各ページへの遷移処理 ---------------------------------------------------------------------
 
 @login_required
@@ -131,7 +134,7 @@ def addrecord(request):
         if lc_list:
             for lc in lc_list:
                 if lc:
-                    if not isalnum_ascii(lc.strip()) or not len(lc.strip()) == 13:
+                    if not check_pc_number(lc.strip()):
                         content = {
                             'name': request.user,
                             'indexes': [],
@@ -182,7 +185,7 @@ def addrecord(request):
         number_array = request.POST['partner_corporate_number'].strip().split(",")
         modified_val = []
         for number_item in number_array:                            
-            if not isalnum_ascii(number_item.strip()) or not len(number_item.strip()) == 13:
+            if not check_pc_number(number_item.strip()):
                 content = {
                     'name': request.user,
                     'indexes': [],
@@ -434,7 +437,7 @@ def add_rec(request):
     number_array = request.POST['partner_corporate_number'].strip().split(",")
     modified_val = []
     for number_item in number_array:                            
-        if not isalnum_ascii(number_item.strip()) or not len(number_item.strip()) == 13:
+        if not check_pc_number(number_item.strip()):
             content = {
                 'name': request.user,
                 'indexes': [],
@@ -712,7 +715,7 @@ def searchresult(request):
                         number_array = request.POST['change_partner_corporate_number'].strip().split(",")
                         modified_val = []
                         for number_item in number_array:                            
-                            if not isalnum_ascii(number_item.strip()) or not len(number_item.strip()) == 13:
+                            if not check_pc_number(number_item.strip()):
                                 raise ValueError("partner_corporate_number")
                             modified_val.append(number_item.strip())
                         r.partner_corporate_number = ",".join(modified_val)
@@ -1734,7 +1737,8 @@ def upload(request):
             IDX_DOCUMENT_NUMBER = 7
             IDX_PDF_PATH = 8
             IDX_COMPANY_NUMBER = 10
-            IDX_ORIGINAL_STORAGE_LOCATION = 11
+            IDX_PARTNER_CORPORATE_NUMBER = 11
+            IDX_ORIGINAL_STORAGE_LOCATION = 12
 
             info("LOAN:" + line[IDX_LOAN_GUARANTEE_AVAILABILITY])
             # フォーマットがおかしい場合
@@ -1798,7 +1802,7 @@ def upload(request):
             # 会社法人番号の有無
             if line[IDX_COMPANY_NUMBER]:
                 for input_lc in line[IDX_COMPANY_NUMBER].split(','):
-                    info(input_lc)
+                    info(str(input_lc))
                     info("=============")
                     if not LocalCompany.objects.filter(id=input_lc):
                         content = {
@@ -1809,6 +1813,21 @@ def upload(request):
                             'result': '会社法人番号' + input_lc + 'はマスター情報に登録されていません'
                         }
                         return render(request, 'contract_index/index.html', content)
+
+            info("Check partner corporate nubmer")
+            # 相手方法人番号の有無
+            if line[IDX_PARTNER_CORPORATE_NUMBER].strip():
+                for input_lc in line[IDX_PARTNER_CORPORATE_NUMBER].strip().split(','):
+                    if not check_pc_number(input_lc.strip()):
+                        content = {
+                            'indexes': Index.objects.filter(id__in=view_id_list),
+                            'indexes_localCompanies': IndexLocalCompany.objects.all(),
+                            'original_classification_dict': original_classification_dict().items(),
+                            'original_storage_location_dict': original_storage_location_dict().items(),
+                            'result': '相手方法人番号は半角英数字13桁のカンマ区切りで入力してください'
+                        }
+                        return render(request, 'contract_index/index.html', content)
+
             with transaction.atomic():
                 # 日付の精査処理
                 # 締結日
@@ -1894,6 +1913,9 @@ def upload(request):
                 # 保管場所URL
                 storage_location_url = line[IDX_PDF_PATH]
 
+                # 相手方法人番号
+                partner_corporate_number = line[IDX_PARTNER_CORPORATE_NUMBER].strip() if line[IDX_PARTNER_CORPORATE_NUMBER].strip() else None
+
                 new_index = Index.objects.create(
                     pdf_path = storage_location_url,
                     contract_title = zenhan(line[IDX_CONTRACT_TITLE]),
@@ -1920,6 +1942,7 @@ def upload(request):
                     # line[8]
                     # line[9]
                     original_storage_location=original_storage_location,
+                    partner_corporate_number = partner_corporate_number
                 )
                 inserted_records += 1
                 view_id_list.append(new_index.id)
@@ -2063,7 +2086,7 @@ def upload2(request):
             if is_header_row:
                 # CSVファイルの判定 更新は12列
                 # info(len(line))
-                if len(line) != 16:
+                if len(line) != 17:
                     content = {
                         'name': request.user,
                         'result': 'CSVの形式に間違いがあるようです。再確認してください。(新規用や通常エクスポートのCSVを使っていませんか？)'
@@ -2104,8 +2127,9 @@ def upload2(request):
             IDX_BASE_LOCALCOMPANIES_NUMBER = 10
             IDX_ADDITIONAL_LOCALCOMPANIES_NUMBER = 11
             IDX_EXCLUSION_LOCALCOMPANIES_NUMBER = 12
-            IDX_ORIGINAL_STORAGE_LOCATION = 14
-            IDX_NO = 15
+            IDX_PARTNER_CORPORATE_NUMBER = 14
+            IDX_ORIGINAL_STORAGE_LOCATION = 15
+            IDX_NO = 16
 
             info("TARGET:" + line[IDX_NO])
             if not (line[IDX_CONTRACT_TITLE] or line[IDX_CONTRACT_COMPANIES] or line[IDX_SIGNING_DATE]
@@ -2137,6 +2161,20 @@ def upload2(request):
                     'result': '契約当事者は入力必須です。ご確認お願い致します。'
                 }
                 return render(request, 'contract_index/index.html', content)
+
+            info("Check partner corporate nubmer")
+            # 相手方法人番号の有無
+            if line[IDX_PARTNER_CORPORATE_NUMBER].strip():
+                for input_lc in line[IDX_PARTNER_CORPORATE_NUMBER].strip().split(','):
+                    if not check_pc_number(input_lc.strip()):
+                        content = {
+                            'indexes': Index.objects.filter(id__in=view_id_list),
+                            'indexes_localCompanies': IndexLocalCompany.objects.all(),
+                            'original_classification_dict': original_classification_dict().items(),
+                            'original_storage_location_dict': original_storage_location_dict().items(),
+                            'result': '相手方法人番号は半角英数字13桁のカンマ区切りで入力してください'
+                        }
+                        return render(request, 'contract_index/index.html', content)
 
             # 日付の精査処理
             # 締結日
@@ -2209,6 +2247,9 @@ def upload2(request):
                     if v == line[IDX_ORIGINAL_STORAGE_LOCATION]:
                         original_storage_location = str(k)
 
+            # 相手方法人番号
+            partner_corporate_number = line[IDX_PARTNER_CORPORATE_NUMBER].strip() if line[IDX_PARTNER_CORPORATE_NUMBER].strip() else None
+
             for r in rec:
                 info('debug import 4')
                 r.pdf_path = line[IDX_PDF_PATH]
@@ -2234,6 +2275,7 @@ def upload2(request):
                 r.deleted_flag = False
                 r.create_user = request.user.username
                 r.modify_user = request.user.username
+                r.partner_corporate_number = partner_corporate_number
                 info("doc_number:" + line[IDX_DOCUMENT_NUMBER])
                 r.save()
                 # 実行対象を保持
