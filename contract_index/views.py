@@ -44,7 +44,7 @@ def original_storage_location_dict():
     """
     項目「原本保管場所」の辞書を返します
     """
-    return {'1': '法務部', '2': 'データ保管', '3': '人事管理（出向系）'}
+    return {'1': '法務部', '2': 'データ保管', '3': '人事管理（出向系）', '4': 'コピー保管'}
 
 
 def add_condition(order_dict, key, condition):
@@ -61,6 +61,15 @@ def isalnum_ascii(s):
 
 def check_pc_number(s):
     return isalnum_ascii(s) and len(s) == 13
+
+def make_double_slash(s):
+    s = s.strip()
+    if s != "":
+        splitted_array = s.split("/")
+        splitted_array = [x for x in splitted_array if x != "" and x.strip() != ""]
+        return "/{}/".format(("//").join(splitted_array))
+    else:
+        return ""
 
 # 各ページへの遷移処理 ---------------------------------------------------------------------
 
@@ -1781,7 +1790,7 @@ def upload(request):
                         'indexes_localCompanies': IndexLocalCompany.objects.all(),
                         'original_classification_dict': original_classification_dict().items(),
                         'original_storage_location_dict': original_storage_location_dict().items(),
-                        'result': '原本保管場所は「法務部」「データ保管」「人事管理（出向系）」のいずれかを設定してください'
+                        'result': '原本保管場所は「法務部」「データ保管」「人事管理（出向系）」「コピー保管」のいずれかを設定してください'
                     }
                     return render(request, 'contract_index/index.html', content)
 
@@ -1920,7 +1929,7 @@ def upload(request):
                     contract_title = zenhan(line[IDX_CONTRACT_TITLE]),
                     signing_target_kou = '',
                     signing_target_otsu = '',
-                    contract_companies = zenhan(line[IDX_CONTRACT_COMPANIES]),
+                    contract_companies = zenhan(make_double_slash(line[IDX_CONTRACT_COMPANIES])),
                     signing_date = signing_date,
                     signing_date_disp = signing_date_disp,
                     expiration_date = expiration_date,

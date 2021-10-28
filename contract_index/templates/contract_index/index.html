@@ -85,6 +85,7 @@
                     <th>非表示</th>{% endif %}
                 {% if perms.contract_index.localcompany_number_base %}
                     <th>管轄社名</th>{% endif %}
+                <th>相手方法人番号</th>
                 {% if perms.contract_index.original_storage_location %}
                     <th>原本保管場所</th>{% endif %}
                 {% if perms.contract_index.change_record %}
@@ -160,6 +161,12 @@
                                 {% endif %}{% endfor %}
                         {% endwith %}
                         </td>
+                    {% comment %} 相手方法人番号 {% endcomment %}
+                    <td class="leftalign textwrap">
+                        {% if i.partner_corporate_number %}
+                        {{ i.partner_corporate_number }}
+                        {% endif %}
+                    </td>
                     {% comment %} 原本保管場所 {% endcomment %}
                     {% if perms.contract_index.original_storage_location %}
                         <td class="leftalign  textwrap">
