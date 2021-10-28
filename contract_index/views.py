@@ -1436,13 +1436,14 @@ def searchresult(request):
             #     original_classification = 'データ（クラウドサイン）'
             # if i.original_classification == "3":
             #     original_classification = 'データ（電子認証）'
-            for k, v in original_classification_dict().items():
-                if k == i.original_classification:
-                    original_classification = v
+            # for k, v in original_classification_dict().items():
+            #     if k == i.original_classification:
+            #         original_classification = v
+            original_classification = i.original_classification
 
             # 保管場所URL
-            if i.storage_location_url:
-                storage_location_url = i.storage_location_url
+            if i.pdf_path:
+                storage_location_url = i.pdf_path
             else:
                 storage_location_url = ''
 
@@ -1513,6 +1514,7 @@ def searchresult(request):
 
         a_list = list()
         for i in export_q:
+
             # 自動更新のTrueを変換
             if i.auto_update:
                 auto_update_sign = '○'
@@ -1613,9 +1615,10 @@ def searchresult(request):
             #     original_classification = 'データ（クラウドサイン）'
             # if i.original_classification == "3":
             #     original_classification = 'データ（電子認証）'
-            for k, v in original_classification_dict().items():
-                if k == i.original_classification:
-                    original_classification = v
+            # for k, v in original_classification_dict().items():
+            #     if k == i.original_classification:
+            #         original_classification = v
+            original_classification = i.original_classification
 
             # 原本保管場所
             original_storage_location = ''
@@ -1630,7 +1633,7 @@ def searchresult(request):
             # 稟議番号
             ringi_no = ''
             if i.ringi_no is not None:
-                ringi_no = '\'' + i.ringi_no
+                ringi_no = i.ringi_no
 
             # 相手方法人番号
             partner_corporate_number = "" if i.partner_corporate_number is None else i.partner_corporate_number
@@ -1640,7 +1643,7 @@ def searchresult(request):
             info("writer")
             writer.writerow([i.contract_title, i.contract_companies, signing_date_disp_sign, original_classification,
                              contract_termination,
-                             i.loan_guarantee_availability, ringi_no, i.document_number, i.storage_location_url,
+                             i.loan_guarantee_availability, ringi_no, i.document_number, i.pdf_path,
                              integration_localcompanies_name, base_localcompanies_number,
                              additional_localcompanies_number, exclusion_localcompanies_number,
                              integration_localcompanies_list, partner_corporate_number, 
