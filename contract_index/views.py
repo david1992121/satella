@@ -1499,7 +1499,7 @@ def searchresult(request):
 
         # writer.writerow(["契約書名", "会社名・甲", "会社名・乙", "締結日", "有効期限", "自動更新", "ファイル名", "URL", "備考", "No.", "非表示", "管轄社"])
         writer.writerow(["契約書名", "契約当事者", "締結日", "原本区分", "契約終了フラグ", "光通信Grpの債務保証有無", "稟議番号", "書面番号", "保管場所URL", "管轄社名",
-                         "管轄社法人番号（元）", "追加管轄社法人番号", "除外管轄社法人番号", "管轄社法人番号（統合）", "原本保管場所", "No."])
+                         "管轄社法人番号（元）", "追加管轄社法人番号", "除外管轄社法人番号", "管轄社法人番号（統合）", "相手方法人番号", "原本保管場所", "No."])
 
         a_list = list()
         for i in export_q:
@@ -1554,8 +1554,7 @@ def searchresult(request):
                 if (result_count > 0):
                     base_localcompanies_list.append(lc.id)
                     info("add:" + lc.id)
-            base_localcompanies_number = '\'' + \
-                ','.join(base_localcompanies_list)
+            base_localcompanies_number = ','.join(base_localcompanies_list)
 
             # 追加管轄社法人番号
             info("companies add")
@@ -1567,8 +1566,7 @@ def searchresult(request):
                     info("add:" + lc.id)
                     additional_localcompanies_list.append(lc.id)
 
-            additional_localcompanies_number = '\'' + \
-                ','.join(additional_localcompanies_list)
+            additional_localcompanies_number = ','.join(additional_localcompanies_list)
 
             # 除外管轄社法人番号
             info("companies delete")
@@ -1580,8 +1578,7 @@ def searchresult(request):
                     info("add:" + lc.id)
                     exclusion_localcompanies_list.append(lc.id)
 
-            exclusion_localcompanies_number = '\'' + \
-                ','.join(exclusion_localcompanies_list)
+            exclusion_localcompanies_number = ','.join(exclusion_localcompanies_list)
 
             info("companies total")
             # 管轄社番号（統合）
@@ -1596,8 +1593,7 @@ def searchresult(request):
                 # for v in IndexLocalCompany.objects.filter(local_company=lc, index=i.id):
                 #     if v.add_flg==2:
                 #         integration_localcompanies_list.append(str(lc.id))
-            integration_localcompanies_list = '\'' + \
-                ','.join(integration_localcompanies_list)
+            integration_localcompanies_list = ','.join(integration_localcompanies_list)
 
             # 原本区分の変換
             original_classification = ''
@@ -1626,6 +1622,9 @@ def searchresult(request):
             if i.ringi_no is not None:
                 ringi_no = '\'' + i.ringi_no
 
+            # 相手方法人番号
+            partner_corporate_number = "" if i.partner_corporate_number is None else i.partner_corporate_number
+
             # writer.writerow([i.contract_title, i.signing_target_kou, i.signing_target_otsu, signing_date_disp_sign, expiration_date_disp_sign, \
             #     auto_update_sign, i.file_name, i.pdf_path, i.remarks, i.id, hidden_flag, localcompanies])
             info("writer")
@@ -1634,7 +1633,7 @@ def searchresult(request):
                              i.loan_guarantee_availability, ringi_no, i.document_number, i.storage_location_url,
                              integration_localcompanies_name, base_localcompanies_number,
                              additional_localcompanies_number, exclusion_localcompanies_number,
-                             integration_localcompanies_list,
+                             integration_localcompanies_list, partner_corporate_number, 
                              original_storage_location, i.id])
 
         # return HttpResponse(a_list)
