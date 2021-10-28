@@ -1244,6 +1244,8 @@ def searchresult(request):
                 'name': request.user,
                 'indexes': indexes.filter(id=change_id),
                 'indexes_localCompanies': IndexLocalCompany.objects.all(),
+                'original_classification_dict': original_classification_dict().items(),
+                'original_storage_location_dict': original_storage_location_dict().items(),
                 'result': result,
             }
 
@@ -1273,7 +1275,6 @@ def searchresult(request):
     else:
         indexes = indexes.filter(deleted_flag=False, **order).filter(q_query).exclude(**order_exclude).order_by(sort_key)
 
-    
     # スーパーユーザでなければ管轄社で表示を絞る
     info("search:02")
     if not request.user.is_superuser:
