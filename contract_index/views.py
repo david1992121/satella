@@ -1566,7 +1566,7 @@ def searchresult(request):
                 if (result_count > 0):
                     base_localcompanies_list.append(lc.id)
                     info("add:" + lc.id)
-            base_localcompanies_number = ','.join(base_localcompanies_list)
+            base_localcompanies_number = '\'' + ','.join(base_localcompanies_list)
 
             # 追加管轄社法人番号
             info("companies add")
@@ -1578,7 +1578,7 @@ def searchresult(request):
                     info("add:" + lc.id)
                     additional_localcompanies_list.append(lc.id)
 
-            additional_localcompanies_number = ','.join(additional_localcompanies_list)
+            additional_localcompanies_number = '\'' + ','.join(additional_localcompanies_list)
 
             # 除外管轄社法人番号
             info("companies delete")
@@ -1590,7 +1590,7 @@ def searchresult(request):
                     info("add:" + lc.id)
                     exclusion_localcompanies_list.append(lc.id)
 
-            exclusion_localcompanies_number = ','.join(exclusion_localcompanies_list)
+            exclusion_localcompanies_number = '\'' + ','.join(exclusion_localcompanies_list)
 
             info("companies total")
             # 管轄社番号（統合）
@@ -1605,7 +1605,7 @@ def searchresult(request):
                 # for v in IndexLocalCompany.objects.filter(local_company=lc, index=i.id):
                 #     if v.add_flg==2:
                 #         integration_localcompanies_list.append(str(lc.id))
-            integration_localcompanies_list = ','.join(integration_localcompanies_list)
+            integration_localcompanies_list = '\'' + ','.join(integration_localcompanies_list)
 
             # 原本区分の変換
             original_classification = ''
@@ -1633,10 +1633,10 @@ def searchresult(request):
             # 稟議番号
             ringi_no = ''
             if i.ringi_no is not None:
-                ringi_no = i.ringi_no
+                ringi_no = '\'' + i.ringi_no
 
             # 相手方法人番号
-            partner_corporate_number = "" if i.partner_corporate_number is None else i.partner_corporate_number
+            partner_corporate_number = "" if i.partner_corporate_number is None else '\'' + i.partner_corporate_number
 
             # writer.writerow([i.contract_title, i.signing_target_kou, i.signing_target_otsu, signing_date_disp_sign, expiration_date_disp_sign, \
             #     auto_update_sign, i.file_name, i.pdf_path, i.remarks, i.id, hidden_flag, localcompanies])
@@ -2121,12 +2121,9 @@ def upload2(request):
             #  [7]書面番号,
             #  [8]保管場所URL,
             #  [9]管轄社名（使わない）,
-            #  [10]管轄社法人番号,
-            # [11]追加管轄社法人番号,
-            # [12]除外管轄社法人番号,
-            # [13]統合管轄社法人番号（使わない）,
-            # [14]原本保管場所
-            # [15]No.
+            #  [10] 相手方法人番号
+            # [11]原本保管場所
+            # [12]No.
             IDX_CONTRACT_TITLE = 0
             IDX_CONTRACT_COMPANIES = 1
             IDX_SIGNING_DATE = 2
@@ -2135,18 +2132,15 @@ def upload2(request):
             IDX_LOAN_GUARANTEE_AVAILABILITY = 5
             IDX_RINGI_NO = 6
             IDX_DOCUMENT_NUMBER = 7
-            IDX_PDF_PATH = 8
-            IDX_BASE_LOCALCOMPANIES_NUMBER = 10
-            IDX_ADDITIONAL_LOCALCOMPANIES_NUMBER = 11
-            IDX_EXCLUSION_LOCALCOMPANIES_NUMBER = 12
-            IDX_PARTNER_CORPORATE_NUMBER = 14
-            IDX_ORIGINAL_STORAGE_LOCATION = 15
-            IDX_NO = 16
+            IDX_PDF_PATH = 8            
+            IDX_PARTNER_CORPORATE_NUMBER = 10
+            IDX_ORIGINAL_STORAGE_LOCATION = 11
+            IDX_NO = 12
 
             info("TARGET:" + line[IDX_NO])
             if not (line[IDX_CONTRACT_TITLE] or line[IDX_CONTRACT_COMPANIES] or line[IDX_SIGNING_DATE]
-                    or line[IDX_RINGI_NO] or line[6] or line[IDX_DOCUMENT_NUMBER] or line[IDX_PDF_PATH] or line[
-                        IDX_BASE_LOCALCOMPANIES_NUMBER] or line[IDX_ORIGINAL_STORAGE_LOCATION] or line[IDX_NO]):
+                    or line[IDX_RINGI_NO] or line[6] or line[IDX_DOCUMENT_NUMBER] or line[IDX_PDF_PATH] 
+                    or line[IDX_ORIGINAL_STORAGE_LOCATION] or line[IDX_NO]): # or line[IDX_BASE_LOCALCOMPANIES_NUMBER] 
                 info("continue:" + line[IDX_NO])
                 continue
 
@@ -2260,7 +2254,14 @@ def upload2(request):
                         original_storage_location = str(k)
 
             # 相手方法人番号
-            partner_corporate_number = line[IDX_PARTNER_CORPORATE_NUMBER].strip() if line[IDX_PARTNER_CORPORATE_NUMBER].strip() else None
+            partner_corporate_number = None
+            if line[IDX_PARTNER_CORPORATE_NUMBER].replace("'", "").strip():
+                partner_corporate_number = line[IDX_PARTNER_CORPORATE_NUMBER].replace("'", "").strip()
+            
+            # 稟議番号
+            ringi_no = None
+            if line[IDX_RINGI_NO].replace("'", "").strip():
+                ringi_no = line[IDX_RINGI_NO].replace("'", "").strip()
 
             for r in rec:
                 info('debug import 4')
@@ -2280,7 +2281,7 @@ def upload2(request):
                 r.contract_termination_flag = contract_termination_flag
                 r.original_classification = original_classification
                 r.loan_guarantee_availability = line[IDX_LOAN_GUARANTEE_AVAILABILITY]
-                r.ringi_no = line[IDX_RINGI_NO]
+                r.ringi_no = ringi_no
                 r.ringi_url = ''
                 r.document_number = line[IDX_DOCUMENT_NUMBER]
                 r.original_storage_location = original_storage_location
@@ -2299,51 +2300,51 @@ def upload2(request):
             #  []管轄社名,
             tmp = []
 
-            # 管轄社法人番号（元）
-            if line[IDX_BASE_LOCALCOMPANIES_NUMBER].replace("'", ''):
-                for lc in line[IDX_BASE_LOCALCOMPANIES_NUMBER].replace("'", '').split(','):
-                    lc2 = LocalCompany.objects.filter(id=lc)
-                    for l in lc2:
-                        IndexLocalCompany.objects.create(
-                            index_id=line[IDX_NO],
-                            local_company_id=l.id,
-                            add_flg=0,
-                        )
-                        tmp.append(l.id)
+            # # 管轄社法人番号（元）
+            # if line[IDX_BASE_LOCALCOMPANIES_NUMBER].replace("'", ''):
+            #     for lc in line[IDX_BASE_LOCALCOMPANIES_NUMBER].replace("'", '').split(','):
+            #         lc2 = LocalCompany.objects.filter(id=lc)
+            #         for l in lc2:
+            #             IndexLocalCompany.objects.create(
+            #                 index_id=line[IDX_NO],
+            #                 local_company_id=l.id,
+            #                 add_flg=0,
+            #             )
+            #             tmp.append(l.id)
 
-            # 追加管轄社法人番号
-            additional_numbers = []
-            if line[IDX_ADDITIONAL_LOCALCOMPANIES_NUMBER].replace("'", ''):
-                for lc in line[IDX_ADDITIONAL_LOCALCOMPANIES_NUMBER].replace("'", '').split(','):
-                    lc2 = LocalCompany.objects.filter(id=lc)
-                    for l in lc2:
-                        IndexLocalCompany.objects.create(
-                            index_id=line[IDX_NO],
-                            local_company_id=l.id,
-                            add_flg=1,
-                        ).save()
-                        tmp.append(l.id)
-                        additional_numbers.append(lc)
+            # # 追加管轄社法人番号
+            # additional_numbers = []
+            # if line[IDX_ADDITIONAL_LOCALCOMPANIES_NUMBER].replace("'", ''):
+            #     for lc in line[IDX_ADDITIONAL_LOCALCOMPANIES_NUMBER].replace("'", '').split(','):
+            #         lc2 = LocalCompany.objects.filter(id=lc)
+            #         for l in lc2:
+            #             IndexLocalCompany.objects.create(
+            #                 index_id=line[IDX_NO],
+            #                 local_company_id=l.id,
+            #                 add_flg=1,
+            #             ).save()
+            #             tmp.append(l.id)
+            #             additional_numbers.append(lc)
 
-            # 除外管轄社法人番号
-            if line[IDX_EXCLUSION_LOCALCOMPANIES_NUMBER].replace("'", ''):
-                for lc in line[IDX_EXCLUSION_LOCALCOMPANIES_NUMBER].replace("'", '').split(','):
-                    lc2 = LocalCompany.objects.filter(id=lc)
+            # # 除外管轄社法人番号
+            # if line[IDX_EXCLUSION_LOCALCOMPANIES_NUMBER].replace("'", ''):
+            #     for lc in line[IDX_EXCLUSION_LOCALCOMPANIES_NUMBER].replace("'", '').split(','):
+            #         lc2 = LocalCompany.objects.filter(id=lc)
                     
-                    if lc in additional_numbers:
-                        for al in IndexLocalCompany.objects.filter(
-                            index_id=line[IDX_NO],
-                            local_company_id=lc
-                        ):
-                            al.add_flg=3
-                            al.save()                        
-                    else:
-                        for l in lc2:
-                            IndexLocalCompany.objects.create(
-                                index_id=line[IDX_NO],
-                                local_company_id=l.id,
-                                add_flg=2
-                            )
+            #         if lc in additional_numbers:
+            #             for al in IndexLocalCompany.objects.filter(
+            #                 index_id=line[IDX_NO],
+            #                 local_company_id=lc
+            #             ):
+            #                 al.add_flg=3
+            #                 al.save()                        
+            #         else:
+            #             for l in lc2:
+            #                 IndexLocalCompany.objects.create(
+            #                     index_id=line[IDX_NO],
+            #                     local_company_id=l.id,
+            #                     add_flg=2
+            #                 )
             line_num += 1
 
         # ログ:CSVインポート
