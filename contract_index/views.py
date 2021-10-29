@@ -2098,7 +2098,7 @@ def upload2(request):
             if is_header_row:
                 # CSVファイルの判定 更新は12列
                 # info(len(line))
-                if len(line) != 17:
+                if len(line) != 13:
                     content = {
                         'name': request.user,
                         'result': 'CSVの形式に間違いがあるようです。再確認してください。(新規用や通常エクスポートのCSVを使っていませんか？)'
